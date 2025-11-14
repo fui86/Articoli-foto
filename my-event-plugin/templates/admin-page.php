@@ -215,15 +215,21 @@ $uyd_check = MEP_Helpers::check_useyourdrive_ready();
                                     echo '</div>';
                                 } else {
                                     // Tutto OK - renderizza lo shortcode
-                                    echo '<div style="margin-bottom: 10px; padding: 10px; background: #f0f6fc; border-radius: 4px;">';
-                                    echo '<p style="margin: 0; font-size: 13px; color: #1d2327;">';
-                                    echo '<span class="dashicons dashicons-info" style="color: #2271b1;"></span> ';
-                                    echo '<strong>Come usare:</strong> Naviga nelle cartelle e <strong>clicca sulla cartella</strong> che contiene le foto dell\'evento. Vedrai le foto apparire sotto.';
+                                    echo '<div style="margin-bottom: 10px; padding: 15px; background: #fff3cd; border-left: 4px solid #ffc107; border-radius: 4px;">';
+                                    echo '<p style="margin: 0 0 10px 0; font-size: 14px; color: #856404; font-weight: 600;">';
+                                    echo '<span class="dashicons dashicons-info-outline" style="color: #ffc107;"></span> ';
+                                    echo 'IMPORTANTE: Come selezionare le foto';
                                     echo '</p>';
+                                    echo '<ol style="margin: 0; padding-left: 20px; color: #856404; font-size: 13px;">';
+                                    echo '<li><strong>Naviga</strong> nelle cartelle sottostanti</li>';
+                                    echo '<li><strong>Clicca sulla cartella</strong> (📁) che contiene le foto dell\'evento</li>';
+                                    echo '<li>Le foto appariranno nella <strong>griglia sottostante</strong> dove potrai selezionarle</li>';
+                                    echo '<li><strong>NON cliccare sulle singole foto</strong> qui sopra!</li>';
+                                    echo '</ol>';
                                     echo '</div>';
                                     
-                                    // Renderizza Use-your-Drive (mostra file E cartelle)
-                                    echo do_shortcode('[useyourdrive mode="files" filelayout="list" viewrole="administrator" downloadrole="all" candownloadzip="0" showsharelink="0" search="1" searchfrom="parent" showfiles="1" showfolders="1" include_ext="jpg,jpeg,png,gif,webp" maxheight="350px" dir="drive"]');
+                                    // Renderizza Use-your-Drive (SOLO cartelle per evitare confusione)
+                                    echo do_shortcode('[useyourdrive mode="files" filelayout="list" viewrole="administrator" downloadrole="all" candownloadzip="0" showsharelink="0" search="1" searchfrom="parent" showfiles="0" showfolders="1" maxheight="350px" dir="drive"]');
                                 }
                             }
                             ?>

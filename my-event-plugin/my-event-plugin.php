@@ -304,29 +304,70 @@ class My_Event_Plugin {
      * Handler AJAX per recuperare le foto da una cartella
      */
     public function handle_get_folder_photos() {
-        check_ajax_referer('mep_nonce', 'nonce');
-        
-        $folder_id = sanitize_text_field($_POST['folder_id'] ?? '');
-        
-        if (empty($folder_id)) {
-            wp_send_json_error(['message' => __('ID cartella mancante', 'my-event-plugin')]);
+        try {
+            check_ajax_referer('mep_nonce', 'nonce');
+            
+            $folder_id = sanitize_text_field($_POST['folder_id'] ?? '');
+            
+            MEP_Helpers::log_info("AJAX: Richiesta foto per cartella: {$folder_id}");
+            
+            if (empty($folder_id)) {
+                MEP_Helpers::log_error("AJAX: ID cartella vuoto");
+                wp_send_json_error([
+                    'message' => __('ID cartella mancante', 'my-event-plugin'),
+                    'debug' => 'folder_id empty'
+                ]);
+            }
+            
+            // Verifica che Use-your-Drive sia disponibile
+            if (!class_exists('TheLion\UseyourDrive\Client')) {
+                MEP_Helpers::log_error("AJAX: Client Use-your-Drive non disponibile");
+                wp_send_json_error([
+                    'message' => __('Use-your-Drive non è disponibile', 'my-event-plugin'),
+                    'debug' => 'Client class not found'
+                ]);
+            }
+            
+            // Ottieni la lista delle foto con thumbnail
+            $photos = MEP_GDrive_Integration::get_photos_list_with_thumbnails($folder_id);
+            
+            if (is_wp_error($photos)) {
+                $error_message = $photos->get_error_message();
+                $error_code = $photos->get_error_code();
+                
+                MEP_Helpers::log_error("AJAX: Errore get_photos_list_with_thumbnails", [
+                    'code' => $error_code,
+                    'message' => $error_message
+                ]);
+                
+                wp_send_json_error([
+                    'message' => $error_message,
+                    'debug' => $error_code
+                ]);
+            }
+            
+            if (empty($photos)) {
+                MEP_Helpers::log_info("AJAX: Nessuna foto trovata nella cartella {$folder_id}");
+                wp_send_json_error([
+                    'message' => __('Nessuna foto trovata nella cartella. Assicurati che contenga file immagine (JPG, PNG, GIF, WebP).', 'my-event-plugin'),
+                    'debug' => 'photos array empty'
+                ]);
+            }
+            
+            MEP_Helpers::log_info("AJAX: Invio " . count($photos) . " foto al client");
+            
+            wp_send_json_success([
+                'photos' => $photos,
+                'count' => count($photos)
+            ]);
+            
+        } catch (Exception $e) {
+            MEP_Helpers::log_error("AJAX: Exception in handle_get_folder_photos", $e->getMessage());
+            wp_send_json_error([
+                'message' => __('Errore imprevisto: ', 'my-event-plugin') . $e->getMessage(),
+                'debug' => 'exception'
+            ]);
         }
-        
-        // Ottieni la lista delle foto con thumbnail
-        $photos = MEP_GDrive_Integration::get_photos_list_with_thumbnails($folder_id);
-        
-        if (is_wp_error($photos)) {
-            wp_send_json_error(['message' => $photos->get_error_message()]);
-        }
-        
-        if (empty($photos)) {
-            wp_send_json_error(['message' => __('Nessuna foto trovata nella cartella', 'my-event-plugin')]);
-        }
-        
-        wp_send_json_success([
-            'photos' => $photos,
-            'count' => count($photos)
-        ]);
     }
     
     /**

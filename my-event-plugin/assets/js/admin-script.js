@@ -233,14 +233,34 @@
                     }
                 },
                 error: function(xhr, status, error) {
-                    console.error('Errore AJAX:', {xhr, status, error});
+                    console.error('❌ Errore AJAX completo:', {
+                        xhr: xhr,
+                        status: status,
+                        error: error,
+                        responseText: xhr.responseText,
+                        response: xhr.responseJSON
+                    });
                     
-                    $('#mep-photo-grid').html('<div class="mep-loading-grid"><p style="color: #d63638;">❌ Errore durante il caricamento delle foto.</p></div>');
+                    let errorMessage = 'Errore sconosciuto';
+                    let debugInfo = '';
+                    
+                    if (xhr.responseJSON && xhr.responseJSON.data) {
+                        errorMessage = xhr.responseJSON.data.message || errorMessage;
+                        debugInfo = xhr.responseJSON.data.debug || '';
+                    }
+                    
+                    $('#mep-photo-grid').html(
+                        '<div class="mep-loading-grid">' +
+                        '<p style="color: #d63638; margin-bottom: 10px;">❌ ' + errorMessage + '</p>' +
+                        (debugInfo ? '<p style="color: #666; font-size: 12px;">Debug: ' + debugInfo + '</p>' : '') +
+                        '<button class="button" onclick="location.reload()">Ricarica Pagina</button>' +
+                        '</div>'
+                    );
                     
                     MEP.folderValidationMsg
                         .removeClass('success')
                         .addClass('error')
-                        .html('❌ Errore di connessione. Riprova o ricarica la pagina.')
+                        .html('❌ ' + errorMessage + (debugInfo ? '<br><small>(' + debugInfo + ')</small>' : ''))
                         .slideDown();
                 }
             });

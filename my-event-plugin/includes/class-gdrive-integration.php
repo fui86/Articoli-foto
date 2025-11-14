@@ -71,10 +71,25 @@ class MEP_GDrive_Integration {
         }
         
         try {
-            $folder = \TheLion\UseyourDrive\Client::instance()->get_folder($folder_id);
+            // Log per debug
+            MEP_Helpers::log_info("Tentativo recupero foto da cartella: {$folder_id}");
+            
+            // Verifica che il client sia disponibile
+            if (!class_exists('\TheLion\UseyourDrive\Client')) {
+                return new WP_Error('client_not_found', __('Client Use-your-Drive non disponibile', 'my-event-plugin'));
+            }
+            
+            $client = \TheLion\UseyourDrive\Client::instance();
+            $folder = $client->get_folder($folder_id);
+            
+            if (empty($folder)) {
+                MEP_Helpers::log_error("Cartella vuota o non trovata", $folder_id);
+                return new WP_Error('folder_not_found', __('Cartella non trovata', 'my-event-plugin'));
+            }
             
             if (empty($folder['contents'])) {
-                return new WP_Error('empty_folder', __('Cartella vuota o non accessibile', 'my-event-plugin'));
+                MEP_Helpers::log_info("Cartella {$folder_id} non contiene file");
+                return []; // Ritorna array vuoto invece di errore
             }
             
             $image_mimetypes = [
@@ -89,30 +104,50 @@ class MEP_GDrive_Integration {
             $photos = [];
             
             foreach ($folder['contents'] as $cached_node) {
-                // Verifica che sia un file (non una cartella)
-                if (!$cached_node->get_entry()->is_file()) {
-                    continue;
-                }
-                
-                $mimetype = $cached_node->get_entry()->get_mimetype();
-                
-                if (in_array($mimetype, $image_mimetypes)) {
+                try {
+                    // Verifica che sia un file (non una cartella)
                     $entry = $cached_node->get_entry();
                     
-                    // Ottieni thumbnail URL
-                    $thumbnail_url = $entry->get_thumbnail_with_size('medium');
-                    if (empty($thumbnail_url)) {
-                        // Fallback: usa l'icona o un placeholder
-                        $thumbnail_url = $entry->get_icon();
+                    if (!$entry->is_file()) {
+                        continue;
                     }
                     
-                    $photos[] = [
-                        'id' => $cached_node->get_id(),
-                        'name' => $entry->get_name(),
-                        'thumbnail' => $thumbnail_url,
-                        'size' => $entry->get_size(),
-                        'mimetype' => $mimetype
-                    ];
+                    $mimetype = $entry->get_mimetype();
+                    
+                    if (in_array($mimetype, $image_mimetypes)) {
+                        // Ottieni thumbnail URL - metodo più sicuro
+                        $thumbnail_url = '';
+                        
+                        // Prova diversi metodi per ottenere il thumbnail
+                        if (method_exists($entry, 'get_thumbnail_with_size')) {
+                            $thumbnail_url = $entry->get_thumbnail_with_size('medium');
+                        }
+                        
+                        if (empty($thumbnail_url) && method_exists($entry, 'get_thumbnail')) {
+                            $thumbnail_url = $entry->get_thumbnail();
+                        }
+                        
+                        if (empty($thumbnail_url) && method_exists($entry, 'get_icon')) {
+                            $thumbnail_url = $entry->get_icon();
+                        }
+                        
+                        // Fallback: usa l'URL diretto del file
+                        if (empty($thumbnail_url) && method_exists($entry, 'get_preview_link')) {
+                            $thumbnail_url = $entry->get_preview_link();
+                        }
+                        
+                        $photos[] = [
+                            'id' => $cached_node->get_id(),
+                            'name' => $entry->get_name(),
+                            'thumbnail' => $thumbnail_url ?: 'https://via.placeholder.com/200x200?text=No+Preview',
+                            'size' => method_exists($entry, 'get_size') ? $entry->get_size() : 0,
+                            'mimetype' => $mimetype
+                        ];
+                    }
+                } catch (Exception $inner_e) {
+                    // Log ma continua con le altre foto
+                    MEP_Helpers::log_error("Errore processamento singola foto", $inner_e->getMessage());
+                    continue;
                 }
             }
             
@@ -122,7 +157,11 @@ class MEP_GDrive_Integration {
             
         } catch (Exception $e) {
             MEP_Helpers::log_error("Errore nel recupero foto dalla cartella {$folder_id}", $e->getMessage());
-            return new WP_Error('api_error', $e->getMessage());
+            MEP_Helpers::log_error("Stack trace", $e->getTraceAsString());
+            return new WP_Error('api_error', sprintf(
+                __('Errore API Use-your-Drive: %s', 'my-event-plugin'),
+                $e->getMessage()
+            ));
         }
     }
     
