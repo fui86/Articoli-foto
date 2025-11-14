@@ -218,12 +218,12 @@ $uyd_check = MEP_Helpers::check_useyourdrive_ready();
                                     echo '<div style="margin-bottom: 10px; padding: 10px; background: #f0f6fc; border-radius: 4px;">';
                                     echo '<p style="margin: 0; font-size: 13px; color: #1d2327;">';
                                     echo '<span class="dashicons dashicons-info" style="color: #2271b1;"></span> ';
-                                    echo '<strong>Come usare:</strong> Naviga nelle cartelle sottostanti e <strong>clicca sulla cartella</strong> che contiene le foto dell\'evento.';
+                                    echo '<strong>Come usare:</strong> Naviga nelle cartelle e <strong>clicca sulla cartella</strong> che contiene le foto dell\'evento. Vedrai le foto apparire sotto.';
                                     echo '</p>';
                                     echo '</div>';
                                     
-                                    // Renderizza Use-your-Drive
-                                    echo do_shortcode('[useyourdrive mode="files" filelayout="list" viewrole="administrator" downloadrole="all" candownloadzip="0" showsharelink="0" search="1" searchfrom="parent" showfiles="0" showfolders="1" maxheight="350px" dir="drive"]');
+                                    // Renderizza Use-your-Drive (mostra file E cartelle)
+                                    echo do_shortcode('[useyourdrive mode="files" filelayout="list" viewrole="administrator" downloadrole="all" candownloadzip="0" showsharelink="0" search="1" searchfrom="parent" showfiles="1" showfolders="1" include_ext="jpg,jpeg,png,gif,webp" maxheight="350px" dir="drive"]');
                                 }
                             }
                             ?>

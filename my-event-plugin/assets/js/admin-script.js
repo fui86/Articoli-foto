@@ -125,21 +125,20 @@
         
         // ===== Gestione Selezione Cartella Google Drive =====
         // Intercetta click sulle cartelle di Use-your-Drive
-        $(document).on('click', '#mep-uyd-browser .entry.folder .entry_link', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            const $entry = $(this).closest('.entry');
+        $(document).on('click', '#mep-uyd-browser .entry.folder', function(e) {
+            // Previeni il comportamento di default solo se clicchiamo direttamente sulla cartella
+            const $entry = $(this);
             const folderId = $entry.attr('data-id');
             const folderName = $entry.find('.entry-name-view').text().trim();
             
             console.log('📁 Cartella cliccata:', {
                 id: folderId,
-                name: folderName
+                name: folderName,
+                entry: $entry
             });
             
             if (!folderId) {
-                console.warn('⚠️ ID cartella non trovato');
+                console.warn('⚠️ ID cartella non trovato. Elemento:', $entry);
                 return;
             }
             
@@ -150,12 +149,26 @@
             // Reset selezione foto precedente
             PhotoSelector.reset();
             
+            // Mostra messaggio di caricamento
+            MEP.folderValidationMsg
+                .removeClass('success error')
+                .addClass('validating')
+                .html('⏳ Caricamento foto dalla cartella "' + folderName + '"...')
+                .slideDown();
+            
             // Carica le foto dalla cartella
             loadFolderPhotos(folderId);
             
             // Feedback visivo
             $('#mep-uyd-browser .entry.folder').removeClass('mep-selected-folder');
             $entry.addClass('mep-selected-folder');
+            
+            // Scroll alla griglia
+            setTimeout(function() {
+                $('html, body').animate({
+                    scrollTop: $('#mep-photo-selector-wrapper').offset().top - 100
+                }, 500);
+            }, 300);
         });
         
         // Alternativa: intercetta evento Use-your-Drive (se disponibile)
@@ -188,6 +201,9 @@
             // Mostra loading
             $('#mep-photo-grid').html('<div class="mep-loading-grid"><span class="mep-spinner"></span><p>Caricamento foto...</p></div>');
             
+            // Nascondi eventuali messaggi di validazione precedenti
+            MEP.folderValidationMsg.slideUp();
+            
             $.ajax({
                 url: mepData.ajax_url,
                 type: 'POST',
@@ -199,15 +215,33 @@
                 success: function(response) {
                     if (response.success && response.data.photos.length > 0) {
                         renderPhotoGrid(response.data.photos);
-                        showValidationMessage('success', 'Trovate ' + response.data.photos.length + ' foto. Seleziona 4 immagini.');
+                        
+                        // Mostra messaggio di successo
+                        MEP.folderValidationMsg
+                            .removeClass('error')
+                            .addClass('success')
+                            .html('✓ Trovate ' + response.data.photos.length + ' foto. Seleziona 4 immagini dalla griglia sottostante.')
+                            .slideDown();
                     } else {
-                        $('#mep-photo-grid').html('<div class="mep-loading-grid"><p style="color: #d63638;">Nessuna foto trovata in questa cartella.</p></div>');
-                        showValidationMessage('error', 'Nessuna foto trovata nella cartella selezionata.');
+                        $('#mep-photo-grid').html('<div class="mep-loading-grid"><p style="color: #d63638;">❌ Nessuna foto trovata in questa cartella.</p></div>');
+                        
+                        MEP.folderValidationMsg
+                            .removeClass('success')
+                            .addClass('error')
+                            .html('❌ Nessuna foto trovata nella cartella selezionata. Scegli una cartella diversa.')
+                            .slideDown();
                     }
                 },
-                error: function() {
-                    $('#mep-photo-grid').html('<div class="mep-loading-grid"><p style="color: #d63638;">Errore durante il caricamento delle foto.</p></div>');
-                    showValidationMessage('error', 'Errore di connessione durante il caricamento delle foto');
+                error: function(xhr, status, error) {
+                    console.error('Errore AJAX:', {xhr, status, error});
+                    
+                    $('#mep-photo-grid').html('<div class="mep-loading-grid"><p style="color: #d63638;">❌ Errore durante il caricamento delle foto.</p></div>');
+                    
+                    MEP.folderValidationMsg
+                        .removeClass('success')
+                        .addClass('error')
+                        .html('❌ Errore di connessione. Riprova o ricarica la pagina.')
+                        .slideDown();
                 }
             });
         }
@@ -284,13 +318,8 @@
             });
         }
         
-        function showValidationMessage(type, message) {
-            MEP.folderValidationMsg
-                .removeClass('success error')
-                .addClass(type)
-                .html(message)
-                .slideDown();
-        }
+        // Rimuovo questa funzione perché non serve più
+        // La gestiamo direttamente in loadFolderPhotos()
         
         // ===== Submit Form =====
         MEP.form.on('submit', function(e) {
@@ -433,6 +462,24 @@
         // ===== Log per debug =====
         console.log('🚀 My Event Plugin - Admin Script caricato');
         console.log('Config:', mepData);
+        
+        // Debug: monitora quando appare Use-your-Drive
+        setTimeout(function() {
+            const uydContainer = $('#mep-uyd-browser');
+            const hasUYD = uydContainer.find('.useyourdrive').length > 0;
+            const folderCount = uydContainer.find('.entry.folder').length;
+            
+            console.log('📊 Use-your-Drive Status:', {
+                container: uydContainer.length > 0 ? 'Trovato' : 'NON trovato',
+                plugin_loaded: hasUYD ? 'Sì' : 'No',
+                folders_visible: folderCount,
+                instructions: 'Clicca su una cartella per caricare le foto'
+            });
+            
+            if (!hasUYD) {
+                console.warn('⚠️ Use-your-Drive non si è caricato correttamente. Controlla la console per errori.');
+            }
+        }, 2000);
     });
     
 })(jQuery);
