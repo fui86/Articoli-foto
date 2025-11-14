@@ -212,6 +212,56 @@ $uyd_check = MEP_Helpers::check_useyourdrive_ready();
                         <input type="hidden" name="event_folder_account" id="event_folder_account">
                         <input type="hidden" name="event_folder_name" id="event_folder_name">
                     </div>
+                    
+                    <!-- Griglia Selezione Foto Manuale -->
+                    <div id="mep-photo-selector-wrapper" style="display:none;">
+                        <hr style="margin: 30px 0; border: 0; border-top: 1px solid #dcdcde;">
+                        
+                        <div class="mep-form-row">
+                            <label class="mep-label required">
+                                <span class="dashicons dashicons-images-alt2"></span>
+                                <?php _e('Seleziona 4 Foto per l\'Articolo', 'my-event-plugin'); ?>
+                            </label>
+                            <p class="mep-description">
+                                <?php _e('Clicca su 4 foto dalla griglia sottostante. Poi scegli quale usare come immagine di copertina.', 'my-event-plugin'); ?>
+                            </p>
+                            
+                            <div id="mep-selection-info" class="mep-selection-info">
+                                <span class="mep-selection-count"><?php _e('Foto selezionate:', 'my-event-plugin'); ?> <strong>0/4</strong></span>
+                            </div>
+                            
+                            <!-- Griglia Foto -->
+                            <div id="mep-photo-grid" class="mep-photo-grid">
+                                <div class="mep-loading-grid">
+                                    <span class="mep-spinner"></span>
+                                    <p><?php _e('Caricamento foto...', 'my-event-plugin'); ?></p>
+                                </div>
+                            </div>
+                            
+                            <!-- Foto Selezionate -->
+                            <div id="mep-selected-photos" class="mep-selected-photos" style="display:none;">
+                                <h3><?php _e('Foto Selezionate:', 'my-event-plugin'); ?></h3>
+                                <div id="mep-selected-photos-list" class="mep-selected-photos-list"></div>
+                                
+                                <div class="mep-featured-image-selector" style="margin-top: 20px;">
+                                    <label class="mep-label required">
+                                        <span class="dashicons dashicons-format-image"></span>
+                                        <?php _e('Quale foto usare come copertina?', 'my-event-plugin'); ?>
+                                    </label>
+                                    <select id="mep-featured-image-select" name="featured_image_index" class="mep-select" required>
+                                        <option value=""><?php _e('-- Seleziona immagine di copertina --', 'my-event-plugin'); ?></option>
+                                        <option value="0"><?php _e('Foto 1', 'my-event-plugin'); ?></option>
+                                        <option value="1"><?php _e('Foto 2', 'my-event-plugin'); ?></option>
+                                        <option value="2"><?php _e('Foto 3', 'my-event-plugin'); ?></option>
+                                        <option value="3"><?php _e('Foto 4', 'my-event-plugin'); ?></option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <!-- Campi nascosti con gli ID delle foto selezionate -->
+                            <input type="hidden" name="selected_photo_ids" id="selected_photo_ids">
+                        </div>
+                    </div>
                 </div>
                 
                 <!-- Submit Button -->

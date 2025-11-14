@@ -25,7 +25,7 @@ class MEP_Post_Creator {
      * Crea un nuovo post evento completo
      * 
      * @param array $form_data Dati dal form
-     * @return int|WP_Error ID del post creato o WP_Error
+     * @return array|WP_Error Array con ID post e info foto, o WP_Error
      */
     public function create_event_post($form_data) {
         // 1. Sanitizza e valida i dati
@@ -42,7 +42,28 @@ class MEP_Post_Creator {
             return $folder_validation;
         }
         
-        // 3. Clona il post template
+        // 3. Valida foto selezionate
+        $selected_photo_ids = !empty($form_data['selected_photo_ids']) 
+            ? explode(',', sanitize_text_field($form_data['selected_photo_ids'])) 
+            : [];
+        
+        if (empty($selected_photo_ids) || count($selected_photo_ids) !== 4) {
+            return new WP_Error(
+                'invalid_photos',
+                __('Devi selezionare esattamente 4 foto', 'my-event-plugin')
+            );
+        }
+        
+        // 4. Valida featured image index
+        $featured_index = isset($form_data['featured_image_index']) 
+            ? absint($form_data['featured_image_index']) 
+            : 0;
+        
+        if ($featured_index < 0 || $featured_index > 3) {
+            $featured_index = 0; // Default alla prima foto
+        }
+        
+        // 5. Clona il post template
         $new_post_id = $this->clone_template_post();
         if (is_wp_error($new_post_id)) {
             return $new_post_id;
@@ -50,20 +71,17 @@ class MEP_Post_Creator {
         
         MEP_Helpers::log_info("Post clonato con ID: {$new_post_id}");
         
-        // 4. Aggiorna titolo e contenuto
+        // 6. Aggiorna titolo e contenuto
         $this->update_post_content($new_post_id, $data);
         
-        // 5. Imposta categoria
+        // 7. Imposta categoria
         if (!empty($data['event_category'])) {
             wp_set_post_categories($new_post_id, [$data['event_category']]);
         }
         
-        // 6. Scarica foto da Google Drive
-        MEP_Helpers::log_info("Inizio download foto da cartella: " . $data['event_folder_id']);
-        $attachment_ids = MEP_GDrive_Integration::import_photos_from_folder(
-            $data['event_folder_id'],
-            4 // Numero di foto da scaricare
-        );
+        // 8. Importa le foto selezionate da Google Drive
+        MEP_Helpers::log_info("Inizio import di " . count($selected_photo_ids) . " foto selezionate");
+        $attachment_ids = MEP_GDrive_Integration::import_specific_photos($selected_photo_ids);
         
         if (is_wp_error($attachment_ids)) {
             // Se fallisce l'import, elimina il post draft
@@ -73,35 +91,37 @@ class MEP_Post_Creator {
         
         MEP_Helpers::log_info("Foto importate: " . count($attachment_ids));
         
-        // 7. Imposta featured image (prima foto)
-        if (!empty($attachment_ids) && get_option('mep_auto_featured_image', 'yes') === 'yes') {
-            set_post_thumbnail($new_post_id, $attachment_ids[0]);
-            MEP_Helpers::log_info("Featured image impostata: " . $attachment_ids[0]);
+        // 9. Imposta featured image (quella scelta dall'utente)
+        if (!empty($attachment_ids[$featured_index])) {
+            set_post_thumbnail($new_post_id, $attachment_ids[$featured_index]);
+            MEP_Helpers::log_info("Featured image impostata: " . $attachment_ids[$featured_index] . " (foto #{$featured_index})");
         }
         
-        // 8. Crea galleria responsive
+        // 10. Crea galleria responsive
         $gallery_shortcode = MEP_GDrive_Integration::create_gallery_shortcode(
             $data['event_folder_id']
         );
         
-        // 9. Aggiungi galleria al contenuto
+        // 11. Aggiungi galleria al contenuto
         $this->append_gallery_to_content($new_post_id, $gallery_shortcode);
         
-        // 10. Salva metadati SEO (Rank Math se disponibile)
+        // 12. Salva metadati SEO (Rank Math se disponibile)
         if (MEP_Helpers::is_rankmath_active()) {
             $this->save_rankmath_seo($new_post_id, $data);
         }
         
-        // 11. Salva metadati custom
+        // 13. Salva metadati custom
         $this->save_custom_metadata($new_post_id, [
             'gdrive_folder_id' => $data['event_folder_id'],
             'gdrive_folder_name' => $data['event_folder_name'],
             'gdrive_photos' => $attachment_ids,
+            'gdrive_photo_ids' => $selected_photo_ids,
+            'featured_image_index' => $featured_index,
             'created_by_plugin' => true,
             'creation_date' => current_time('mysql')
         ]);
         
-        // 12. Aggiorna lo stato a "bozza" o "pubblicato" in base alle impostazioni
+        // 14. Aggiorna lo stato a "bozza" o "pubblicato" in base alle impostazioni
         $auto_publish = get_option('mep_auto_publish', 'no');
         if ($auto_publish === 'yes') {
             wp_update_post([
@@ -113,10 +133,22 @@ class MEP_Post_Creator {
         
         MEP_Helpers::log_info("Evento creato con successo! Post ID: {$new_post_id}");
         
+        // 15. Ottieni gli URL delle foto importate per mostrarli all'utente
+        $photo_urls = [];
+        foreach ($attachment_ids as $attachment_id) {
+            $photo_urls[] = wp_get_attachment_url($attachment_id);
+        }
+        
         // Hook per estensioni future
         do_action('mep_after_event_created', $new_post_id, $data, $attachment_ids);
         
-        return $new_post_id;
+        // Restituisci array con tutte le info necessarie
+        return [
+            'post_id' => $new_post_id,
+            'attachment_ids' => $attachment_ids,
+            'photo_urls' => $photo_urls,
+            'featured_index' => $featured_index
+        ];
     }
     
     /**

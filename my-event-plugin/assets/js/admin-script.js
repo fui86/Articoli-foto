@@ -68,6 +68,61 @@
             }
         }
         
+        // ===== Photo Selection State =====
+        const PhotoSelector = {
+            selectedPhotos: [], // Array di oggetti {id, name, thumbnail}
+            maxPhotos: 4,
+            
+            reset: function() {
+                this.selectedPhotos = [];
+                this.updateUI();
+            },
+            
+            addPhoto: function(photo) {
+                if (this.selectedPhotos.length >= this.maxPhotos) {
+                    alert('Puoi selezionare massimo ' + this.maxPhotos + ' foto!');
+                    return false;
+                }
+                
+                // Verifica che non sia già selezionata
+                if (this.isSelected(photo.id)) {
+                    return false;
+                }
+                
+                this.selectedPhotos.push(photo);
+                this.updateUI();
+                return true;
+            },
+            
+            removePhoto: function(photoId) {
+                this.selectedPhotos = this.selectedPhotos.filter(p => p.id !== photoId);
+                this.updateUI();
+            },
+            
+            isSelected: function(photoId) {
+                return this.selectedPhotos.some(p => p.id === photoId);
+            },
+            
+            updateUI: function() {
+                const count = this.selectedPhotos.length;
+                
+                // Aggiorna contatore
+                $('.mep-selection-count strong').text(count + '/' + this.maxPhotos);
+                
+                // Aggiorna campo hidden con gli ID
+                const photoIds = this.selectedPhotos.map(p => p.id).join(',');
+                $('#selected_photo_ids').val(photoIds);
+                
+                // Mostra/nascondi sezione foto selezionate
+                if (count > 0) {
+                    renderSelectedPhotos();
+                    $('#mep-selected-photos').slideDown();
+                } else {
+                    $('#mep-selected-photos').slideUp();
+                }
+            }
+        };
+        
         // ===== Gestione Selezione Cartella Google Drive =====
         // Use-your-Drive emette questo evento quando una cartella viene selezionata
         $('.wpcp-module').on('wpcp-content-loaded', function(e, data) {
@@ -86,34 +141,116 @@
             MEP.folderAccount.val(accountId);
             MEP.folderName.val(folderPath);
             
-            // Valida la cartella (verifica numero immagini)
-            validateFolder(folderId);
+            // Reset selezione foto precedente
+            PhotoSelector.reset();
+            
+            // Carica le foto dalla cartella
+            loadFolderPhotos(folderId);
         });
         
-        // ===== Validazione Cartella =====
-        function validateFolder(folderId) {
+        // ===== Carica Foto dalla Cartella =====
+        function loadFolderPhotos(folderId) {
             if (!folderId) return;
             
-            showValidationMessage('validating', mepData.strings.validating);
+            // Mostra sezione selector
+            $('#mep-photo-selector-wrapper').slideDown();
+            
+            // Mostra loading
+            $('#mep-photo-grid').html('<div class="mep-loading-grid"><span class="mep-spinner"></span><p>Caricamento foto...</p></div>');
             
             $.ajax({
                 url: mepData.ajax_url,
                 type: 'POST',
                 data: {
-                    action: 'mep_validate_folder',
+                    action: 'mep_get_folder_photos',
                     nonce: mepData.nonce,
                     folder_id: folderId
                 },
                 success: function(response) {
-                    if (response.success) {
-                        showValidationMessage('success', response.data.message);
+                    if (response.success && response.data.photos.length > 0) {
+                        renderPhotoGrid(response.data.photos);
+                        showValidationMessage('success', 'Trovate ' + response.data.photos.length + ' foto. Seleziona 4 immagini.');
                     } else {
-                        showValidationMessage('error', response.data.message);
+                        $('#mep-photo-grid').html('<div class="mep-loading-grid"><p style="color: #d63638;">Nessuna foto trovata in questa cartella.</p></div>');
+                        showValidationMessage('error', 'Nessuna foto trovata nella cartella selezionata.');
                     }
                 },
                 error: function() {
-                    showValidationMessage('error', 'Errore di connessione durante la validazione');
+                    $('#mep-photo-grid').html('<div class="mep-loading-grid"><p style="color: #d63638;">Errore durante il caricamento delle foto.</p></div>');
+                    showValidationMessage('error', 'Errore di connessione durante il caricamento delle foto');
                 }
+            });
+        }
+        
+        // ===== Renderizza Griglia Foto =====
+        function renderPhotoGrid(photos) {
+            const grid = $('#mep-photo-grid');
+            grid.empty();
+            
+            photos.forEach(function(photo) {
+                const photoItem = $('<div>')
+                    .addClass('mep-photo-item')
+                    .attr('data-photo-id', photo.id)
+                    .attr('data-photo-name', photo.name)
+                    .html(`
+                        <img src="${photo.thumbnail}" alt="${photo.name}">
+                        <div class="mep-photo-check">✓</div>
+                        <div class="mep-photo-name">${photo.name}</div>
+                    `);
+                
+                // Gestisci click
+                photoItem.on('click', function() {
+                    const photoId = $(this).attr('data-photo-id');
+                    const photoName = $(this).attr('data-photo-name');
+                    const thumbnail = $(this).find('img').attr('src');
+                    
+                    if ($(this).hasClass('selected')) {
+                        // Deseleziona
+                        $(this).removeClass('selected');
+                        PhotoSelector.removePhoto(photoId);
+                    } else {
+                        // Seleziona
+                        if (PhotoSelector.addPhoto({
+                            id: photoId,
+                            name: photoName,
+                            thumbnail: thumbnail
+                        })) {
+                            $(this).addClass('selected');
+                        }
+                    }
+                });
+                
+                grid.append(photoItem);
+            });
+        }
+        
+        // ===== Renderizza Foto Selezionate =====
+        function renderSelectedPhotos() {
+            const list = $('#mep-selected-photos-list');
+            list.empty();
+            
+            PhotoSelector.selectedPhotos.forEach(function(photo, index) {
+                const preview = $('<div>')
+                    .addClass('mep-selected-photo-preview')
+                    .html(`
+                        <img src="${photo.thumbnail}" alt="${photo.name}">
+                        <div class="mep-photo-number">${index + 1}</div>
+                        <div class="mep-remove-photo" data-photo-id="${photo.id}">×</div>
+                    `);
+                
+                // Gestisci rimozione
+                preview.find('.mep-remove-photo').on('click', function(e) {
+                    e.stopPropagation();
+                    const photoId = $(this).attr('data-photo-id');
+                    
+                    // Rimuovi dalla selezione
+                    PhotoSelector.removePhoto(photoId);
+                    
+                    // Rimuovi classe selected dalla griglia
+                    $('.mep-photo-item[data-photo-id="' + photoId + '"]').removeClass('selected');
+                });
+                
+                list.append(preview);
             });
         }
         
@@ -132,6 +269,25 @@
             // Validazione base
             if (!MEP.folderId.val()) {
                 alert(mepData.strings.select_folder);
+                return false;
+            }
+            
+            // Validazione foto selezionate
+            if (PhotoSelector.selectedPhotos.length !== 4) {
+                alert('Devi selezionare esattamente 4 foto!');
+                $('html, body').animate({
+                    scrollTop: $('#mep-photo-selector-wrapper').offset().top - 100
+                }, 500);
+                return false;
+            }
+            
+            // Validazione featured image
+            const featuredIndex = $('#mep-featured-image-select').val();
+            if (featuredIndex === '') {
+                alert('Devi scegliere quale foto usare come immagine di copertina!');
+                $('html, body').animate({
+                    scrollTop: $('#mep-featured-image-select').offset().top - 100
+                }, 500);
                 return false;
             }
             
@@ -157,23 +313,41 @@
                 success: function(response) {
                     if (response.success) {
                         // Successo!
+                        
+                        // Crea la lista degli URL delle foto importate
+                        let photoUrlsHtml = '';
+                        if (response.data.photo_urls && response.data.photo_urls.length > 0) {
+                            photoUrlsHtml = '<div style="margin-top: 20px; padding: 15px; background: #f0f6fc; border-radius: 4px; border-left: 4px solid #2271b1;">' +
+                                '<h4 style="margin-top: 0;">📋 URL delle foto importate (copia per il tuo HTML):</h4>' +
+                                '<div style="display: grid; gap: 10px;">';
+                            
+                            response.data.photo_urls.forEach(function(url, index) {
+                                const isCover = (index == response.data.featured_index);
+                                photoUrlsHtml += '<div style="background: white; padding: 10px; border-radius: 4px; border: 1px solid #c3c4c7;">' +
+                                    '<strong>Foto ' + (index + 1) + (isCover ? ' (Copertina)' : '') + ':</strong><br>' +
+                                    '<input type="text" value="' + url + '" readonly onclick="this.select()" style="width: 100%; padding: 5px; margin-top: 5px; font-family: monospace; font-size: 12px;">' +
+                                    '</div>';
+                            });
+                            
+                            photoUrlsHtml += '</div></div>';
+                        }
+                        
                         MEP.statusMsg
                             .removeClass('processing')
                             .addClass('success')
                             .html(
                                 mepData.strings.success + '<br>' +
+                                photoUrlsHtml +
+                                '<div style="margin-top: 15px;">' +
                                 '<a href="' + response.data.edit_url + '" class="button button-primary" style="margin-top: 10px;">Modifica Evento</a> ' +
-                                '<a href="' + response.data.view_url + '" class="button" style="margin-top: 10px;" target="_blank">Visualizza</a>'
+                                '<a href="' + response.data.view_url + '" class="button" style="margin-top: 10px;" target="_blank">Visualizza</a>' +
+                                '</div>'
                             );
                         
-                        // Reset form dopo 3 secondi
-                        setTimeout(function() {
-                            if (confirm('Evento creato! Vuoi crearne un altro?')) {
-                                location.reload();
-                            } else {
-                                window.location.href = response.data.edit_url;
-                            }
-                        }, 3000);
+                        // Scroll to message
+                        $('html, body').animate({
+                            scrollTop: MEP.statusMsg.offset().top - 100
+                        }, 500);
                         
                     } else {
                         // Errore

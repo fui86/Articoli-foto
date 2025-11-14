@@ -68,6 +68,7 @@ class My_Event_Plugin {
         // AJAX handlers
         add_action('wp_ajax_mep_process_event_creation', [$this, 'handle_event_creation']);
         add_action('wp_ajax_mep_validate_folder', [$this, 'handle_folder_validation']);
+        add_action('wp_ajax_mep_get_folder_photos', [$this, 'handle_get_folder_photos']);
         
         // Shortcode per frontend (opzionale)
         add_shortcode('my_event_form', [$this, 'render_frontend_form']);
@@ -250,10 +251,16 @@ class My_Event_Plugin {
                 wp_send_json_error(['message' => $result->get_error_message()]);
             }
             
+            // Il risultato ora è un array con post_id, photo_urls, ecc.
+            $post_id = $result['post_id'];
+            
             wp_send_json_success([
-                'post_id' => $result,
-                'edit_url' => get_edit_post_link($result, 'raw'),
-                'view_url' => get_permalink($result)
+                'post_id' => $post_id,
+                'edit_url' => get_edit_post_link($post_id, 'raw'),
+                'view_url' => get_permalink($post_id),
+                'photo_urls' => $result['photo_urls'],
+                'attachment_ids' => $result['attachment_ids'],
+                'featured_index' => $result['featured_index']
             ]);
             
         } catch (Exception $e) {
@@ -289,6 +296,35 @@ class My_Event_Plugin {
                 __('Cartella valida! Contiene %d immagini.', 'my-event-plugin'),
                 $image_count
             )
+        ]);
+    }
+    
+    /**
+     * Handler AJAX per recuperare le foto da una cartella
+     */
+    public function handle_get_folder_photos() {
+        check_ajax_referer('mep_nonce', 'nonce');
+        
+        $folder_id = sanitize_text_field($_POST['folder_id'] ?? '');
+        
+        if (empty($folder_id)) {
+            wp_send_json_error(['message' => __('ID cartella mancante', 'my-event-plugin')]);
+        }
+        
+        // Ottieni la lista delle foto con thumbnail
+        $photos = MEP_GDrive_Integration::get_photos_list_with_thumbnails($folder_id);
+        
+        if (is_wp_error($photos)) {
+            wp_send_json_error(['message' => $photos->get_error_message()]);
+        }
+        
+        if (empty($photos)) {
+            wp_send_json_error(['message' => __('Nessuna foto trovata nella cartella', 'my-event-plugin')]);
+        }
+        
+        wp_send_json_success([
+            'photos' => $photos,
+            'count' => count($photos)
         ]);
     }
     
