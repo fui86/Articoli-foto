@@ -69,6 +69,7 @@ class My_Event_Plugin {
         add_action('wp_ajax_mep_process_event_creation', [$this, 'handle_event_creation']);
         add_action('wp_ajax_mep_validate_folder', [$this, 'handle_folder_validation']);
         add_action('wp_ajax_mep_get_folder_photos', [$this, 'handle_get_folder_photos']);
+        add_action('wp_ajax_mep_get_template_preview', [$this, 'handle_get_template_preview']);
         
         // Shortcode per frontend (opzionale)
         add_shortcode('my_event_form', [$this, 'render_frontend_form']);
@@ -326,6 +327,82 @@ class My_Event_Plugin {
             'photos' => $photos,
             'count' => count($photos)
         ]);
+    }
+    
+    /**
+     * Handler AJAX per ottenere anteprima template
+     */
+    public function handle_get_template_preview() {
+        check_ajax_referer('mep_settings_nonce', 'nonce');
+        
+        if (!current_user_can('manage_options')) {
+            wp_send_json_error(['message' => __('Permessi insufficienti', 'my-event-plugin')]);
+        }
+        
+        $post_id = absint($_POST['post_id'] ?? 0);
+        
+        if (empty($post_id)) {
+            wp_send_json_error(['message' => __('ID post mancante', 'my-event-plugin')]);
+        }
+        
+        $post = get_post($post_id);
+        
+        if (!$post) {
+            wp_send_json_error(['message' => __('Post non trovato', 'my-event-plugin')]);
+        }
+        
+        // Genera HTML anteprima
+        $categories = get_the_category($post_id);
+        $cat_names = !empty($categories) ? implode(', ', wp_list_pluck($categories, 'name')) : __('Nessuna categoria', 'my-event-plugin');
+        
+        $status_labels = [
+            'publish' => __('Pubblicato', 'my-event-plugin'),
+            'draft' => __('Bozza', 'my-event-plugin'),
+            'pending' => __('In attesa di revisione', 'my-event-plugin'),
+            'private' => __('Privato', 'my-event-plugin')
+        ];
+        $status = isset($status_labels[$post->post_status]) ? $status_labels[$post->post_status] : $post->post_status;
+        
+        ob_start();
+        ?>
+        <h4 style="margin-top: 0; color: #2271b1;">
+            <span class="dashicons dashicons-yes-alt" style="color: #00a32a;"></span>
+            <?php _e('Template Selezionato:', 'my-event-plugin'); ?>
+        </h4>
+        <p style="margin: 10px 0;">
+            <strong><?php _e('Titolo:', 'my-event-plugin'); ?></strong> 
+            <?php echo esc_html($post->post_title); ?>
+        </p>
+        <p style="margin: 10px 0;">
+            <strong><?php _e('ID:', 'my-event-plugin'); ?></strong> 
+            <?php echo $post_id; ?>
+        </p>
+        <p style="margin: 10px 0;">
+            <strong><?php _e('Categorie:', 'my-event-plugin'); ?></strong> 
+            <?php echo esc_html($cat_names); ?>
+        </p>
+        <p style="margin: 10px 0;">
+            <strong><?php _e('Stato:', 'my-event-plugin'); ?></strong> 
+            <?php echo esc_html($status); ?>
+        </p>
+        <p style="margin: 10px 0;">
+            <strong><?php _e('Data pubblicazione:', 'my-event-plugin'); ?></strong> 
+            <?php echo date_i18n(get_option('date_format'), strtotime($post->post_date)); ?>
+        </p>
+        <p style="margin: 10px 0 0 0;">
+            <a href="<?php echo get_edit_post_link($post_id); ?>" target="_blank" class="button button-secondary">
+                <span class="dashicons dashicons-edit" style="margin-top: 3px;"></span>
+                <?php _e('Modifica Template', 'my-event-plugin'); ?>
+            </a>
+            <a href="<?php echo get_permalink($post_id); ?>" target="_blank" class="button button-secondary">
+                <span class="dashicons dashicons-visibility" style="margin-top: 3px;"></span>
+                <?php _e('Visualizza', 'my-event-plugin'); ?>
+            </a>
+        </p>
+        <?php
+        $html = ob_get_clean();
+        
+        wp_send_json_success(['html' => $html]);
     }
     
     /**
