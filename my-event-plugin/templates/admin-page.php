@@ -182,27 +182,49 @@ $uyd_check = MEP_Helpers::check_useyourdrive_ready();
                         <div id="mep-folder-validation-message" class="mep-validation-message" style="display:none;"></div>
                         
                         <!-- Use-your-Drive Folder Selector -->
-                        <div class="mep-folder-selector-container">
+                        <div class="mep-folder-selector-container" id="mep-uyd-browser">
                             <?php
-                            if (class_exists('TheLion\UseyourDrive\AdminLayout')) {
-                                \TheLion\UseyourDrive\AdminLayout::render_folder_selectbox([
-                                    'key' => 'event_folder',
-                                    'title' => '',
-                                    'description' => '',
-                                    'shortcode_attr' => [
-                                        'mode' => 'files',
-                                        'filelayout' => 'list',
-                                        'maxheight' => '400px',
-                                        'showfiles' => '1',
-                                        'hoverthumbs' => '1',
-                                        'filesize' => '1',
-                                        'filedate' => '1',
-                                        'search' => '1',
-                                        'dir' => 'drive',
-                                    ]
-                                ]);
+                            // Verifica che Use-your-Drive sia disponibile
+                            if (!shortcode_exists('useyourdrive')) {
+                                // Plugin non attivo
+                                echo '<div style="padding: 20px; background: #f8d7da; border: 1px solid #d63638; border-radius: 4px;">';
+                                echo '<p style="margin: 0; color: #721c24;"><strong>❌ Errore:</strong> Use-your-Drive non è attivo!</p>';
+                                echo '<p style="margin: 10px 0 0 0;"><a href="' . admin_url('plugins.php') . '" class="button">Attiva Use-your-Drive</a></p>';
+                                echo '</div>';
+                            } elseif (!class_exists('TheLion\UseyourDrive\Accounts')) {
+                                // Classe mancante
+                                echo '<div style="padding: 20px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px;">';
+                                echo '<p style="margin: 0; color: #856404;"><strong>⚠️ Attenzione:</strong> Use-your-Drive è attivo ma non completamente caricato.</p>';
+                                echo '<p style="margin: 10px 0 0 0;">Prova a ricaricare la pagina o reinstalla Use-your-Drive.</p>';
+                                echo '</div>';
                             } else {
-                                echo '<p class="mep-error">' . __('Use-your-Drive non è disponibile.', 'my-event-plugin') . '</p>';
+                                // Verifica account Google Drive
+                                $accounts = \TheLion\UseyourDrive\Accounts::instance()->list_accounts();
+                                if (empty($accounts)) {
+                                    // Nessun account configurato
+                                    echo '<div style="padding: 20px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px;">';
+                                    echo '<p style="margin: 0; color: #856404;"><strong>⚠️ Configurazione Richiesta:</strong> Devi collegare un account Google Drive prima di usare questa funzionalità.</p>';
+                                    echo '<ol style="margin: 10px 0; padding-left: 20px; color: #856404;">';
+                                    echo '<li>Vai nelle <strong>Impostazioni Use-your-Drive</strong></li>';
+                                    echo '<li>Clicca su <strong>"Accounts"</strong></li>';
+                                    echo '<li>Clicca su <strong>"Add Account"</strong></li>';
+                                    echo '<li>Autorizza l\'accesso a Google Drive</li>';
+                                    echo '<li>Torna qui e ricarica la pagina</li>';
+                                    echo '</ol>';
+                                    echo '<p style="margin: 10px 0 0 0;"><a href="' . admin_url('admin.php?page=use_your_drive_settings') . '" class="button button-primary">Vai alle Impostazioni Use-your-Drive</a></p>';
+                                    echo '</div>';
+                                } else {
+                                    // Tutto OK - renderizza lo shortcode
+                                    echo '<div style="margin-bottom: 10px; padding: 10px; background: #f0f6fc; border-radius: 4px;">';
+                                    echo '<p style="margin: 0; font-size: 13px; color: #1d2327;">';
+                                    echo '<span class="dashicons dashicons-info" style="color: #2271b1;"></span> ';
+                                    echo '<strong>Come usare:</strong> Naviga nelle cartelle sottostanti e <strong>clicca sulla cartella</strong> che contiene le foto dell\'evento.';
+                                    echo '</p>';
+                                    echo '</div>';
+                                    
+                                    // Renderizza Use-your-Drive
+                                    echo do_shortcode('[useyourdrive mode="files" filelayout="list" viewrole="administrator" downloadrole="all" candownloadzip="0" showsharelink="0" search="1" searchfrom="parent" showfiles="0" showfolders="1" maxheight="350px" dir="drive"]');
+                                }
                             }
                             ?>
                         </div>

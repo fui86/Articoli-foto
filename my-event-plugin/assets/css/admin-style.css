@@ -221,6 +221,36 @@
     border-radius: 4px;
     padding: 10px;
     background: #fff;
+    min-height: 400px;
+}
+
+/* Stile per Use-your-Drive browser */
+#mep-uyd-browser .entry.folder {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+#mep-uyd-browser .entry.folder:hover {
+    background-color: #f0f6fc !important;
+}
+
+#mep-uyd-browser .entry.folder.mep-selected-folder {
+    background-color: #e0f0ff !important;
+    border-left: 4px solid #2271b1 !important;
+}
+
+#mep-uyd-browser .entry.folder.mep-selected-folder::after {
+    content: "✓ Selezionata";
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #00a32a;
+    color: white;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: 600;
 }
 
 .mep-validation-message {

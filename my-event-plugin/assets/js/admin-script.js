@@ -124,28 +124,58 @@
         };
         
         // ===== Gestione Selezione Cartella Google Drive =====
-        // Use-your-Drive emette questo evento quando una cartella viene selezionata
-        $('.wpcp-module').on('wpcp-content-loaded', function(e, data) {
-            const folderId = data.element.attr('data-id');
-            const folderPath = data.element.attr('data-path');
-            const accountId = data.element.attr('data-account-id');
+        // Intercetta click sulle cartelle di Use-your-Drive
+        $(document).on('click', '#mep-uyd-browser .entry.folder .entry_link', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
             
-            console.log('📁 Cartella selezionata:', {
+            const $entry = $(this).closest('.entry');
+            const folderId = $entry.attr('data-id');
+            const folderName = $entry.find('.entry-name-view').text().trim();
+            
+            console.log('📁 Cartella cliccata:', {
                 id: folderId,
-                path: folderPath,
-                account: accountId
+                name: folderName
             });
+            
+            if (!folderId) {
+                console.warn('⚠️ ID cartella non trovato');
+                return;
+            }
             
             // Popola i campi nascosti
             MEP.folderId.val(folderId);
-            MEP.folderAccount.val(accountId);
-            MEP.folderName.val(folderPath);
+            MEP.folderName.val(folderName);
             
             // Reset selezione foto precedente
             PhotoSelector.reset();
             
             // Carica le foto dalla cartella
             loadFolderPhotos(folderId);
+            
+            // Feedback visivo
+            $('#mep-uyd-browser .entry.folder').removeClass('mep-selected-folder');
+            $entry.addClass('mep-selected-folder');
+        });
+        
+        // Alternativa: intercetta evento Use-your-Drive (se disponibile)
+        $(document).on('wpcp-content-loaded', '#mep-uyd-browser', function(e, data) {
+            if (data && data.element) {
+                const folderId = data.element.attr('data-id');
+                const folderPath = data.element.attr('data-path') || data.element.find('.entry-name-view').text().trim();
+                
+                console.log('📁 Evento Use-your-Drive:', {
+                    id: folderId,
+                    path: folderPath
+                });
+                
+                if (folderId) {
+                    MEP.folderId.val(folderId);
+                    MEP.folderName.val(folderPath);
+                    PhotoSelector.reset();
+                    loadFolderPhotos(folderId);
+                }
+            }
         });
         
         // ===== Carica Foto dalla Cartella =====
