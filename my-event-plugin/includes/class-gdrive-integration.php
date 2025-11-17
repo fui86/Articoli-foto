@@ -86,8 +86,22 @@ class MEP_GDrive_Integration {
                 return new WP_Error('client_error', __('Impossibile ottenere il client Use-your-Drive', 'my-event-plugin'));
             }
             
-            // Ottieni la cartella
-            $folder = $client->get_folder($folder_id);
+            // Ottieni la cartella - Wrapped in try/catch per gestire errori di Use-your-Drive
+            $folder = null;
+            try {
+                $folder = $client->get_folder($folder_id);
+            } catch (Exception $uyd_exception) {
+                MEP_Helpers::log_error("Eccezione Use-your-Drive get_folder", [
+                    'folder_id' => $folder_id,
+                    'error' => $uyd_exception->getMessage(),
+                    'trace' => $uyd_exception->getTraceAsString()
+                ]);
+                
+                return new WP_Error('uyd_access_error', sprintf(
+                    __('Use-your-Drive non riesce ad accedere alla cartella. Possibili cause: (1) L\'account non ha i permessi, (2) La cartella è condivisa ma non con l\'account Use-your-Drive, (3) L\'ID della cartella è sbagliato. Errore: %s', 'my-event-plugin'),
+                    $uyd_exception->getMessage()
+                ));
+            }
             
             if (empty($folder)) {
                 MEP_Helpers::log_error("Cartella {$folder_id} non trovata o vuota");

@@ -1,5 +1,42 @@
 # 🔧 Troubleshooting - My Event Plugin
 
+## 🔒 Errore: "Use-your-Drive non riesce ad accedere alla cartella"
+
+### ⚠️ PROBLEMA PIÙ COMUNE
+
+**Errore**: `Call to a member function get_id() on null in Cache.php`
+
+**Causa**: L'account Use-your-Drive non ha i permessi per accedere alla cartella.
+
+### ✅ Soluzione Rapida
+
+1. **Trova l'email dell'account Use-your-Drive**:
+   - Vai in **Use-your-Drive** > **Settings** > **Accounts**
+   - Copia l'email dell'account autorizzato (es: `tuoaccount@gmail.com`)
+
+2. **Condividi la cartella con quell'account**:
+   - Apri [Google Drive](https://drive.google.com)
+   - Trova la cartella con le foto
+   - Click destro > **Condividi**
+   - Aggiungi l'email Use-your-Drive
+   - Imposta permessi: **Visualizzatore** (basta questo)
+   - Clicca **Invia**
+
+3. **Riprova nel plugin**:
+   - Torna in **Eventi Auto**
+   - Ricarica la pagina (Ctrl+Shift+R)
+   - Clicca sulla cartella
+   - Ora dovrebbe funzionare! 🎉
+
+### 🔍 Verifica Rapida
+
+La cartella è:
+- [ ] Nel tuo "Il mio Drive" dell'account Use-your-Drive? → Dovrebbe funzionare
+- [ ] Condivisa con te da qualcun altro? → **Devi ricondividerla con Use-your-Drive**
+- [ ] In un Team Drive? → **Verifica che Use-your-Drive abbia accesso al Team Drive**
+
+---
+
 ## ❌ Errore: "Errore di connessione" quando seleziono una cartella
 
 ### Cause Possibili
@@ -7,7 +44,7 @@
 1. **Use-your-Drive non è configurato correttamente**
 2. **L'account Google Drive non è autorizzato**
 3. **La cartella selezionata non contiene foto**
-4. **Permessi insufficienti sulla cartella Google Drive**
+4. **Permessi insufficienti sulla cartella Google Drive** ← PIÙ COMUNE
 
 ### Soluzioni
 

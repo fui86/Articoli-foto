@@ -284,25 +284,48 @@
                     
                     // Prova a parsare la risposta JSON
                     let errorMessage = 'Errore di connessione. ';
+                    let errorCode = '';
                     try {
                         const response = JSON.parse(xhr.responseText);
                         if (response.data && response.data.message) {
                             errorMessage = response.data.message;
+                            errorCode = response.data.code || '';
                         }
                     } catch (e) {
                         console.error('Impossibile parsare risposta errore:', e);
                         errorMessage += 'Codice errore: ' + xhr.status;
                     }
                     
+                    // Messaggio specifico per errore di accesso Use-your-Drive
+                    let helpMessage = '';
+                    if (errorCode === 'uyd_access_error') {
+                        helpMessage = '<div style="margin-top: 15px; padding: 15px; background: #fff3cd; border: 2px solid #dba617; border-radius: 8px;">' +
+                            '<h4 style="margin: 0 0 10px 0; color: #856404;">🔒 Problema di Accesso</h4>' +
+                            '<p style="margin: 0 0 10px 0; font-size: 13px; line-height: 1.6;">L\'account Use-your-Drive non ha accesso a questa cartella. <strong>Soluzioni:</strong></p>' +
+                            '<ol style="margin: 0 0 10px 0; padding-left: 20px; font-size: 13px; line-height: 1.8;">' +
+                            '<li>Apri <a href="https://drive.google.com/drive/folders/' + folderId + '" target="_blank">questa cartella su Google Drive</a></li>' +
+                            '<li>Clicca <strong>Condividi</strong></li>' +
+                            '<li>Aggiungi l\'email dell\'account Use-your-Drive con permessi <strong>"Visualizzatore"</strong></li>' +
+                            '<li>Torna qui e riprova</li>' +
+                            '</ol>' +
+                            '<p style="margin: 10px 0 0 0; padding-top: 10px; border-top: 1px solid #ddd; font-size: 12px;">' +
+                            '<strong>Non sai quale email?</strong> Vai in <a href="' + mepData.ajax_url.replace('admin-ajax.php', 'admin.php?page=use_your_drive_settings') + '" target="_blank">Use-your-Drive > Settings > Accounts</a>' +
+                            '</p>' +
+                            '</div>';
+                    }
+                    
                     $('#mep-photo-grid').html(
                         '<div class="mep-loading-grid">' +
                         '<p style="color: #d63638;">❌ ' + errorMessage + '</p>' +
+                        helpMessage +
                         '<details style="margin-top: 10px; font-size: 12px; color: #646970;">' +
-                        '<summary style="cursor: pointer;">Dettagli tecnici</summary>' +
-                        '<pre style="background: #f5f5f5; padding: 10px; margin-top: 5px; overflow: auto;">' +
+                        '<summary style="cursor: pointer;">🔍 Dettagli tecnici</summary>' +
+                        '<pre style="background: #f5f5f5; padding: 10px; margin-top: 5px; overflow: auto; max-height: 200px;">' +
                         'Status: ' + xhr.status + '\n' +
-                        'Error: ' + error + '\n' +
-                        'Response: ' + xhr.responseText.substring(0, 500) +
+                        'Error Code: ' + errorCode + '\n' +
+                        'Folder ID: ' + folderId + '\n' +
+                        'Error: ' + error + '\n\n' +
+                        'Response:\n' + xhr.responseText.substring(0, 800) +
                         '</pre>' +
                         '</details>' +
                         '</div>'
