@@ -87,20 +87,30 @@ class MEP_GDrive_Integration {
             }
             
             // Ottieni la cartella - Wrapped in try/catch per gestire errori di Use-your-Drive
+            // Usiamo Throwable per catturare sia Exception che Error (PHP 7+)
             $folder = null;
             try {
                 $folder = $client->get_folder($folder_id);
-            } catch (Exception $uyd_exception) {
-                MEP_Helpers::log_error("Eccezione Use-your-Drive get_folder", [
+            } catch (Throwable $uyd_exception) {
+                MEP_Helpers::log_error("Errore Use-your-Drive get_folder", [
                     'folder_id' => $folder_id,
                     'error' => $uyd_exception->getMessage(),
+                    'file' => $uyd_exception->getFile(),
+                    'line' => $uyd_exception->getLine(),
                     'trace' => $uyd_exception->getTraceAsString()
                 ]);
                 
-                return new WP_Error('uyd_access_error', sprintf(
-                    __('Use-your-Drive non riesce ad accedere alla cartella. Possibili cause: (1) L\'account non ha i permessi, (2) La cartella è condivisa ma non con l\'account Use-your-Drive, (3) L\'ID della cartella è sbagliato. Errore: %s', 'my-event-plugin'),
-                    $uyd_exception->getMessage()
-                ));
+                // Messaggio user-friendly basato sul tipo di errore
+                $error_message = 'Use-your-Drive non riesce ad accedere alla cartella.';
+                
+                if (strpos($uyd_exception->getMessage(), 'get_id()') !== false || 
+                    strpos($uyd_exception->getMessage(), 'null') !== false) {
+                    $error_message .= ' L\'account Use-your-Drive non ha i permessi per questa cartella.';
+                } else {
+                    $error_message .= ' Errore: ' . $uyd_exception->getMessage();
+                }
+                
+                return new WP_Error('uyd_access_error', $error_message);
             }
             
             if (empty($folder)) {
@@ -161,9 +171,11 @@ class MEP_GDrive_Integration {
             
             return $photos;
             
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             MEP_Helpers::log_error("Errore nel recupero foto dalla cartella {$folder_id}", [
                 'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString()
             ]);
             return new WP_Error('api_error', sprintf(

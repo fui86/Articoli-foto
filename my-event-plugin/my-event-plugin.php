@@ -359,9 +359,11 @@ class My_Event_Plugin {
                 'folder_id' => $folder_id
             ]);
             
-        } catch (Exception $e) {
-            MEP_Helpers::log_error("AJAX: Eccezione catturata", [
+        } catch (Throwable $e) {
+            MEP_Helpers::log_error("AJAX: Errore catturato", [
                 'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString()
             ]);
             
