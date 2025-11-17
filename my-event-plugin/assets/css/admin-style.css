@@ -228,11 +228,36 @@
 /* Stile per Use-your-Drive browser */
 #mep-uyd-browser .entry.folder {
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    transition: all 0.3s ease;
+    position: relative;
 }
 
 #mep-uyd-browser .entry.folder:hover {
-    background-color: #f0f6fc !important;
+    background-color: #e3f2fd !important;
+    transform: translateX(5px);
+    box-shadow: 0 2px 8px rgba(34, 113, 177, 0.2);
+}
+
+#mep-uyd-browser .entry.folder:hover::before {
+    content: "👆 Clicca per selezionare";
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #2271b1;
+    color: white;
+    padding: 5px 12px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    z-index: 10;
+    animation: pulseHint 1.5s ease-in-out infinite;
+}
+
+@keyframes pulseHint {
+    0%, 100% { opacity: 1; transform: translateY(-50%) scale(1); }
+    50% { opacity: 0.8; transform: translateY(-50%) scale(1.05); }
 }
 
 #mep-uyd-browser .entry.folder.mep-selected-folder {

@@ -180,25 +180,35 @@ $uyd_check = MEP_Helpers::check_useyourdrive_ready();
                     <div class="mep-form-row">
                         
                         <!-- Metodo Alternativo: Input Manuale ID Cartella -->
-                        <div style="margin-bottom: 20px; padding: 15px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px;">
-                            <label style="display: block; font-weight: 600; margin-bottom: 8px;">
-                                <span class="dashicons dashicons-admin-links" style="color: #2271b1;"></span>
-                                <?php _e('Metodo Alternativo: Incolla l\'ID della Cartella', 'my-event-plugin'); ?>
+                        <div style="margin-bottom: 20px; padding: 15px; background: linear-gradient(135deg, #fff9e6 0%, #fff4d6 100%); border: 2px solid #dba617; border-radius: 8px;">
+                            <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 10px; color: #1d2327;">
+                                <span class="dashicons dashicons-admin-links" style="color: #dba617; font-size: 20px; width: 20px; height: 20px;"></span>
+                                <?php _e('⚡ Metodo Rapido: Incolla l\'ID della Cartella', 'my-event-plugin'); ?>
                             </label>
                             <div style="display: flex; gap: 10px; align-items: flex-start;">
                                 <input type="text" 
                                        id="mep-manual-folder-id" 
-                                       placeholder="<?php esc_attr_e('Es: 1a2b3c4d5e6f7g8h9i0j', 'my-event-plugin'); ?>"
-                                       style="flex: 1; padding: 8px 12px; border: 1px solid #8c8f94; border-radius: 4px;">
+                                       placeholder="<?php esc_attr_e('Incolla qui l\'ID: 1a2b3c4d5e6f7g8h9i0j', 'my-event-plugin'); ?>"
+                                       style="flex: 1; padding: 10px 14px; border: 2px solid #dba617; border-radius: 6px; font-family: monospace; font-size: 13px;">
                                 <button type="button" 
                                         id="mep-load-manual-folder" 
-                                        class="button button-secondary">
+                                        class="button button-primary"
+                                        style="background: #dba617; border-color: #dba617; box-shadow: none; padding: 10px 20px;">
+                                    <span class="dashicons dashicons-download" style="margin-top: 3px;"></span>
                                     <?php _e('Carica Foto', 'my-event-plugin'); ?>
                                 </button>
                             </div>
-                            <p style="margin: 8px 0 0 0; color: #646970; font-size: 12px;">
-                                <?php _e('💡 Se il browser qui sotto non funziona, puoi incollare direttamente l\'ID della cartella Google Drive e cliccare "Carica Foto"', 'my-event-plugin'); ?>
-                            </p>
+                            <details style="margin-top: 12px;">
+                                <summary style="cursor: pointer; color: #856404; font-size: 12px; font-weight: 600;">
+                                    ❓ Come ottenere l'ID della cartella?
+                                </summary>
+                                <ol style="margin: 10px 0 0 0; padding-left: 20px; font-size: 12px; color: #646970; line-height: 1.6;">
+                                    <li>Apri <a href="https://drive.google.com" target="_blank" style="color: #2271b1;">Google Drive</a></li>
+                                    <li>Naviga nella cartella con le foto</li>
+                                    <li>Guarda l'URL: <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px;">drive.google.com/drive/folders/<strong>ID_QUI</strong></code></li>
+                                    <li>Copia l'ID e incollalo nel campo sopra</li>
+                                </ol>
+                            </details>
                         </div>
                         
                         <div id="mep-folder-validation-message" class="mep-validation-message" style="display:none;"></div>
@@ -237,11 +247,24 @@ $uyd_check = MEP_Helpers::check_useyourdrive_ready();
                                     echo '</div>';
                                 } else {
                                     // Tutto OK - renderizza lo shortcode
-                                    echo '<div style="margin-bottom: 10px; padding: 10px; background: #f0f6fc; border-radius: 4px;">';
-                                    echo '<p style="margin: 0; font-size: 13px; color: #1d2327;">';
-                                    echo '<span class="dashicons dashicons-info" style="color: #2271b1;"></span> ';
-                                    echo '<strong>Come usare:</strong> Naviga nelle cartelle e <strong>clicca sulla cartella</strong> che contiene le foto dell\'evento. Vedrai le foto apparire sotto.';
+                                    echo '<div style="margin-bottom: 15px; padding: 15px; background: linear-gradient(to right, #e3f2fd, #f0f6fc); border: 2px solid #2271b1; border-radius: 8px; box-shadow: 0 2px 8px rgba(34, 113, 177, 0.15);">';
+                                    echo '<div style="display: flex; align-items: flex-start; gap: 15px;">';
+                                    echo '<span class="dashicons dashicons-info" style="color: #2271b1; font-size: 28px; width: 28px; height: 28px; flex-shrink: 0; margin-top: 2px;"></span>';
+                                    echo '<div>';
+                                    echo '<p style="margin: 0 0 10px 0; font-size: 14px; font-weight: 600; color: #1d2327;">';
+                                    echo '📂 Come Selezionare la Cartella:';
                                     echo '</p>';
+                                    echo '<ol style="margin: 0; padding-left: 20px; color: #1d2327; line-height: 1.8;">';
+                                    echo '<li><strong>Naviga</strong> nel browser qui sotto per trovare la cartella con le foto</li>';
+                                    echo '<li><strong>Clicca sul NOME della cartella</strong> (non entrare dentro)</li>';
+                                    echo '<li>Vedrai apparire la <strong>griglia con le miniature</strong> delle foto sotto</li>';
+                                    echo '<li>Poi potrai <strong>selezionare le 4 foto</strong> cliccando sulle miniature</li>';
+                                    echo '</ol>';
+                                    echo '<p style="margin: 10px 0 0 0; padding: 8px 10px; background: rgba(255, 255, 255, 0.7); border-left: 3px solid #dba617; font-size: 12px; color: #856404; border-radius: 4px;">';
+                                    echo '⚠️ <strong>Nota:</strong> Qui sotto vedi SOLO le cartelle. Le foto singole appariranno nella griglia dopo che selezioni una cartella.';
+                                    echo '</p>';
+                                    echo '</div>';
+                                    echo '</div>';
                                     echo '</div>';
                                     
                                     // Verifica che lo shortcode esista
@@ -251,9 +274,9 @@ $uyd_check = MEP_Helpers::check_useyourdrive_ready();
                                         echo 'Verifica che Use-your-Drive sia installato e attivo.';
                                         echo '</div>';
                                     } else {
-                                        // Shortcode semplificato - lascia che Use-your-Drive gestisca tutto
-                                        // Mostra sia cartelle che file per permettere la navigazione
-                                        $shortcode = '[useyourdrive mode="files" viewrole="administrator" candownloadzip="0" showsharelink="0" showfiles="1" showfolders="1" include_ext="jpg,jpeg,png,gif,webp" maxheight="400px" showbreadcrumb="1"]';
+                                        // Shortcode che mostra SOLO le cartelle (non i file)
+                                        // I file verranno mostrati nella griglia sotto quando selezioni la cartella
+                                        $shortcode = '[useyourdrive mode="files" viewrole="administrator" candownloadzip="0" showsharelink="0" showfiles="0" showfolders="1" maxheight="400px" showbreadcrumb="1" lightbox="0"]';
                                         
                                         // Debug: mostra lo shortcode generato
                                         if (defined('WP_DEBUG') && WP_DEBUG) {
