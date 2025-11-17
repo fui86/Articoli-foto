@@ -179,6 +179,28 @@ $uyd_check = MEP_Helpers::check_useyourdrive_ready();
                     
                     <div class="mep-form-row">
                         
+                        <!-- Metodo Alternativo: Input Manuale ID Cartella -->
+                        <div style="margin-bottom: 20px; padding: 15px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 8px;">
+                                <span class="dashicons dashicons-admin-links" style="color: #2271b1;"></span>
+                                <?php _e('Metodo Alternativo: Incolla l\'ID della Cartella', 'my-event-plugin'); ?>
+                            </label>
+                            <div style="display: flex; gap: 10px; align-items: flex-start;">
+                                <input type="text" 
+                                       id="mep-manual-folder-id" 
+                                       placeholder="<?php esc_attr_e('Es: 1a2b3c4d5e6f7g8h9i0j', 'my-event-plugin'); ?>"
+                                       style="flex: 1; padding: 8px 12px; border: 1px solid #8c8f94; border-radius: 4px;">
+                                <button type="button" 
+                                        id="mep-load-manual-folder" 
+                                        class="button button-secondary">
+                                    <?php _e('Carica Foto', 'my-event-plugin'); ?>
+                                </button>
+                            </div>
+                            <p style="margin: 8px 0 0 0; color: #646970; font-size: 12px;">
+                                <?php _e('💡 Se il browser qui sotto non funziona, puoi incollare direttamente l\'ID della cartella Google Drive e cliccare "Carica Foto"', 'my-event-plugin'); ?>
+                            </p>
+                        </div>
+                        
                         <div id="mep-folder-validation-message" class="mep-validation-message" style="display:none;"></div>
                         
                         <!-- Use-your-Drive Folder Selector -->
@@ -222,41 +244,42 @@ $uyd_check = MEP_Helpers::check_useyourdrive_ready();
                                     echo '</p>';
                                     echo '</div>';
                                     
-                                    // Ottieni il primo account disponibile
-                                    $primary_account = \TheLion\UseyourDrive\Accounts::instance()->list_accounts();
-                                    $account_id = !empty($primary_account) ? reset($primary_account)->get_id() : '';
-                                    
-                                    // Renderizza Use-your-Drive con parametri corretti
-                                    // Mostra solo le CARTELLE (non i file) per una navigazione più pulita
-                                    $shortcode_params = [
-                                        'mode' => 'files',
-                                        'filelayout' => 'list',
-                                        'viewrole' => 'administrator',
-                                        'downloadrole' => 'none',
-                                        'candownloadzip' => '0',
-                                        'showsharelink' => '0',
-                                        'showfiles' => '0',  // Nascondi i file, mostra solo cartelle
-                                        'showfolders' => '1',
-                                        'search' => '1',
-                                        'searchfrom' => 'parent',
-                                        'maxheight' => '400px',
-                                        'showbreadcrumb' => '1',
-                                        'roottext' => 'Google Drive'
-                                    ];
-                                    
-                                    // Aggiungi account se disponibile
-                                    if (!empty($account_id)) {
-                                        $shortcode_params['account'] = $account_id;
+                                    // Verifica che lo shortcode esista
+                                    if (!shortcode_exists('useyourdrive')) {
+                                        echo '<div style="padding: 15px; background: #ffe5e8; border-left: 4px solid #d63638; border-radius: 4px; margin-top: 10px;">';
+                                        echo '<strong>⚠️ Errore:</strong> Lo shortcode [useyourdrive] non è disponibile. ';
+                                        echo 'Verifica che Use-your-Drive sia installato e attivo.';
+                                        echo '</div>';
+                                    } else {
+                                        // Shortcode semplificato - lascia che Use-your-Drive gestisca tutto
+                                        // Mostra sia cartelle che file per permettere la navigazione
+                                        $shortcode = '[useyourdrive mode="files" viewrole="administrator" candownloadzip="0" showsharelink="0" showfiles="1" showfolders="1" include_ext="jpg,jpeg,png,gif,webp" maxheight="400px" showbreadcrumb="1"]';
+                                        
+                                        // Debug: mostra lo shortcode generato
+                                        if (defined('WP_DEBUG') && WP_DEBUG) {
+                                            echo '<!-- Shortcode generato: ' . esc_html($shortcode) . ' -->';
+                                            echo '<!-- Accounts: ' . print_r($accounts, true) . ' -->';
+                                        }
+                                        
+                                        // Renderizza lo shortcode
+                                        $output = do_shortcode($shortcode);
+                                        
+                                        // Verifica se l'output è vuoto
+                                        if (empty(trim($output))) {
+                                            echo '<div style="padding: 15px; background: #fff3cd; border-left: 4px solid #dba617; border-radius: 4px; margin-top: 10px;">';
+                                            echo '<strong>⚠️ Attenzione:</strong> Use-your-Drive non ha generato alcun output. ';
+                                            echo 'Possibili cause:<br>';
+                                            echo '<ul style="margin: 10px 0 0 20px; padding: 0;">';
+                                            echo '<li>Nessun account Google Drive è autorizzato</li>';
+                                            echo '<li>Le autorizzazioni dell\'account sono scadute</li>';
+                                            echo '<li>Use-your-Drive ha bisogno di essere riconfigurato</li>';
+                                            echo '</ul>';
+                                            echo '<p style="margin: 10px 0 0 0;"><a href="' . admin_url('admin.php?page=use_your_drive_settings') . '" class="button button-primary">Configura Use-your-Drive</a></p>';
+                                            echo '</div>';
+                                        } else {
+                                            echo $output;
+                                        }
                                     }
-                                    
-                                    // Costruisci shortcode
-                                    $shortcode = '[useyourdrive';
-                                    foreach ($shortcode_params as $key => $value) {
-                                        $shortcode .= ' ' . $key . '="' . esc_attr($value) . '"';
-                                    }
-                                    $shortcode .= ']';
-                                    
-                                    echo do_shortcode($shortcode);
                                 }
                             }
                             ?>

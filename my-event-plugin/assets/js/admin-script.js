@@ -147,20 +147,30 @@
         
         // ===== Gestione Selezione Cartella Google Drive =====
         // Intercetta click sulle cartelle di Use-your-Drive
-        $(document).on('click', '#mep-uyd-browser .entry.folder', function(e) {
-            // Previeni il comportamento di default solo se clicchiamo direttamente sulla cartella
-            const $entry = $(this);
+        $(document).on('click', '#mep-uyd-browser .entry.folder .entry-info', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const $entry = $(this).closest('.entry.folder');
             const folderId = $entry.attr('data-id');
             const folderName = $entry.find('.entry-name-view').text().trim();
             
-            console.log('📁 Cartella cliccata:', {
+            console.log('📁 Cartella selezionata:', {
                 id: folderId,
                 name: folderName,
-                entry: $entry
+                entry: $entry[0],
+                allAttributes: {
+                    'data-id': $entry.attr('data-id'),
+                    'data-name': $entry.attr('data-name'),
+                    'class': $entry.attr('class')
+                }
             });
             
             if (!folderId) {
-                console.warn('⚠️ ID cartella non trovato. Elemento:', $entry);
+                console.error('⚠️ ID cartella non trovato!');
+                console.log('Elemento cartella:', $entry[0]);
+                console.log('Tutti gli attributi:', $entry[0].attributes);
+                alert('Impossibile ottenere l\'ID della cartella. Controlla la console per i dettagli.');
                 return;
             }
             
@@ -339,6 +349,51 @@
                 list.append(preview);
             });
         }
+        
+        // ===== Pulsante Carica Foto Manuale =====
+        $('#mep-load-manual-folder').on('click', function() {
+            const manualFolderId = $('#mep-manual-folder-id').val().trim();
+            
+            if (!manualFolderId) {
+                alert('Inserisci l\'ID della cartella Google Drive!');
+                $('#mep-manual-folder-id').focus();
+                return;
+            }
+            
+            console.log('📂 Caricamento manuale cartella con ID:', manualFolderId);
+            
+            // Popola i campi nascosti
+            MEP.folderId.val(manualFolderId);
+            MEP.folderName.val('Cartella Google Drive');
+            
+            // Reset selezione foto precedente
+            PhotoSelector.reset();
+            
+            // Mostra messaggio di caricamento
+            MEP.folderValidationMsg
+                .removeClass('success error')
+                .addClass('validating')
+                .html('⏳ Caricamento foto dalla cartella...')
+                .slideDown();
+            
+            // Carica le foto dalla cartella
+            loadFolderPhotos(manualFolderId);
+            
+            // Scroll alla griglia
+            setTimeout(function() {
+                $('html, body').animate({
+                    scrollTop: $('#mep-photo-selector-wrapper').offset().top - 100
+                }, 500);
+            }, 300);
+        });
+        
+        // ===== Enter key su input manuale =====
+        $('#mep-manual-folder-id').on('keypress', function(e) {
+            if (e.which === 13) {
+                e.preventDefault();
+                $('#mep-load-manual-folder').click();
+            }
+        });
         
         // ===== Pulsante Cancella Selezione =====
         $(document).on('click', '#mep-clear-selection', function() {
