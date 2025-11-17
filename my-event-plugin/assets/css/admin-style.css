@@ -212,7 +212,8 @@
 /* ===== Google Drive Section ===== */
 .mep-gdrive-section {
     background: #fff;
-    border: 2px dashed #c3c4c7;
+    border: 2px solid #e0e0e0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 
 .mep-folder-selector-container {
@@ -247,29 +248,64 @@
     transform: translateY(-50%);
     background: #00a32a;
     color: white;
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 12px;
+    padding: 6px 14px;
+    border-radius: 16px;
+    font-size: 13px;
     font-weight: 600;
+    box-shadow: 0 2px 6px rgba(0, 163, 42, 0.3);
+    animation: fadeInRight 0.3s ease;
+}
+
+@keyframes fadeInRight {
+    from {
+        opacity: 0;
+        transform: translateY(-50%) translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(-50%) translateX(0);
+    }
 }
 
 .mep-validation-message {
-    padding: 10px 15px;
-    border-radius: 4px;
-    margin-bottom: 15px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
     font-size: 14px;
+    line-height: 1.6;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .mep-validation-message.success {
-    background: #d5e8d4;
+    background: linear-gradient(to right, #d5f4e6, #c1f0d8);
     border-left: 4px solid #00a32a;
     color: #006600;
+    box-shadow: 0 2px 6px rgba(0, 163, 42, 0.15);
 }
 
 .mep-validation-message.error {
-    background: #f8d7da;
+    background: linear-gradient(to right, #ffe5e8, #ffd5da);
     border-left: 4px solid #d63638;
     color: #721c24;
+    box-shadow: 0 2px 6px rgba(214, 54, 56, 0.15);
+}
+
+.mep-validation-message.validating {
+    background: linear-gradient(to right, #e3f2fd, #d1e7ff);
+    border-left: 4px solid #2271b1;
+    color: #0d47a1;
+    box-shadow: 0 2px 6px rgba(34, 113, 177, 0.15);
 }
 
 /* ===== Form Actions ===== */
@@ -390,14 +426,15 @@
 }
 
 .mep-selection-info {
-    background: #f0f6fc;
-    border: 1px solid #2271b1;
-    border-radius: 4px;
-    padding: 12px 15px;
+    background: linear-gradient(to right, #f0f6fc, #e8f4f8);
+    border: 2px solid #2271b1;
+    border-radius: 8px;
+    padding: 15px 20px;
     margin-bottom: 20px;
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: 0 2px 4px rgba(34, 113, 177, 0.1);
 }
 
 .mep-selection-count {
@@ -439,17 +476,19 @@
 .mep-photo-item {
     position: relative;
     cursor: pointer;
-    border-radius: 8px;
+    border-radius: 12px;
     overflow: hidden;
     background: #fff;
-    border: 3px solid transparent;
-    transition: all 0.3s ease;
+    border: 3px solid #e0e0e0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     aspect-ratio: 1;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
 .mep-photo-item:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    border-color: #2271b1;
 }
 
 .mep-photo-item img {
@@ -461,24 +500,35 @@
 
 .mep-photo-item.selected {
     border-color: #00a32a;
-    box-shadow: 0 0 0 2px #00a32a;
+    box-shadow: 0 0 0 3px rgba(0, 163, 42, 0.3), 0 4px 12px rgba(0, 163, 42, 0.2);
+    transform: scale(0.95);
+}
+
+.mep-photo-item.selected:hover {
+    transform: scale(0.97);
 }
 
 .mep-photo-item .mep-photo-check {
     position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 28px;
-    height: 28px;
+    top: 10px;
+    right: 10px;
+    width: 32px;
+    height: 32px;
     background: #00a32a;
     border-radius: 50%;
     display: none;
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 16px;
+    font-size: 18px;
     font-weight: bold;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+    animation: checkBounce 0.3s ease;
+}
+
+@keyframes checkBounce {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
 }
 
 .mep-photo-item.selected .mep-photo-check {
@@ -505,11 +555,24 @@
 
 /* ===== Selected Photos Preview ===== */
 .mep-selected-photos {
-    margin-top: 25px;
-    padding: 20px;
-    background: #fff;
-    border: 2px solid #00a32a;
-    border-radius: 4px;
+    margin-top: 30px;
+    padding: 25px;
+    background: linear-gradient(to bottom, #ffffff, #f9fff9);
+    border: 3px solid #00a32a;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 163, 42, 0.1);
+    animation: slideInUp 0.4s ease;
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .mep-selected-photos h3 {
@@ -544,9 +607,15 @@
 .mep-selected-photo-preview {
     position: relative;
     aspect-ratio: 1;
-    border-radius: 8px;
+    border-radius: 12px;
     overflow: hidden;
-    border: 2px solid #00a32a;
+    border: 3px solid #00a32a;
+    box-shadow: 0 2px 8px rgba(0, 163, 42, 0.2);
+    transition: transform 0.3s ease;
+}
+
+.mep-selected-photo-preview:hover {
+    transform: scale(1.05);
 }
 
 .mep-selected-photo-preview img {

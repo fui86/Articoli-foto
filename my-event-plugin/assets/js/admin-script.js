@@ -113,12 +113,34 @@
                 const photoIds = this.selectedPhotos.map(p => p.id).join(',');
                 $('#selected_photo_ids').val(photoIds);
                 
+                // Cambia stile del contatore in base al progresso
+                const $counter = $('.mep-selection-count strong');
+                if (count === 4) {
+                    $counter.css('color', '#00a32a');
+                    $('#mep-selection-help').html('✓ Perfetto! Ora scegli la foto di copertina sotto.');
+                } else if (count > 0) {
+                    $counter.css('color', '#dba617');
+                    $('#mep-selection-help').html('Seleziona ancora ' + (4 - count) + ' foto');
+                } else {
+                    $counter.css('color', '#2271b1');
+                    $('#mep-selection-help').html('Clicca sulle miniature per selezionarle');
+                }
+                
                 // Mostra/nascondi sezione foto selezionate
                 if (count > 0) {
                     renderSelectedPhotos();
                     $('#mep-selected-photos').slideDown();
                 } else {
                     $('#mep-selected-photos').slideUp();
+                }
+                
+                // Auto-scroll se ha selezionato tutte e 4 le foto
+                if (count === 4) {
+                    setTimeout(function() {
+                        $('html, body').animate({
+                            scrollTop: $('#mep-selected-photos').offset().top - 100
+                        }, 500);
+                    }, 300);
                 }
             }
         };
@@ -318,8 +340,14 @@
             });
         }
         
-        // Rimuovo questa funzione perché non serve più
-        // La gestiamo direttamente in loadFolderPhotos()
+        // ===== Pulsante Cancella Selezione =====
+        $(document).on('click', '#mep-clear-selection', function() {
+            if (confirm('Vuoi davvero cancellare la selezione delle foto?')) {
+                PhotoSelector.reset();
+                $('.mep-photo-item').removeClass('selected');
+                $('#mep-featured-image-select').val('');
+            }
+        });
         
         // ===== Submit Form =====
         MEP.form.on('submit', function(e) {

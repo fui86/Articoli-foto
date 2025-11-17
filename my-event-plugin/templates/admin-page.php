@@ -166,18 +166,18 @@ $uyd_check = MEP_Helpers::check_useyourdrive_ready();
                 
                 <!-- Folder Google Drive -->
                 <div class="mep-section mep-gdrive-section">
-                    <h2 class="mep-section-title">
-                        <span class="dashicons dashicons-cloud"></span>
-                        <?php _e('Foto da Google Drive', 'my-event-plugin'); ?>
-                    </h2>
+                    <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                        <h2 style="margin: 0 0 10px 0; color: white; display: flex; align-items: center; gap: 10px; font-size: 20px;">
+                            <span class="dashicons dashicons-cloud" style="font-size: 28px; width: 28px; height: 28px;"></span>
+                            <?php _e('Passo 1: Seleziona la Cartella con le Foto', 'my-event-plugin'); ?>
+                        </h2>
+                        <p style="margin: 0; opacity: 0.95; line-height: 1.6;">
+                            <?php _e('📁 Naviga nel tuo Google Drive e clicca sulla cartella che contiene le foto dell\'evento.', 'my-event-plugin'); ?><br>
+                            <?php _e('✨ Dopo aver selezionato la cartella, vedrai tutte le foto disponibili per l\'importazione.', 'my-event-plugin'); ?>
+                        </p>
+                    </div>
                     
                     <div class="mep-form-row">
-                        <label class="mep-label required">
-                            <?php _e('Seleziona Cartella con le Foto', 'my-event-plugin'); ?>
-                        </label>
-                        <p class="mep-description">
-                            <?php _e('Naviga il tuo Google Drive e seleziona la cartella contenente le foto dell\'evento', 'my-event-plugin'); ?>
-                        </p>
                         
                         <div id="mep-folder-validation-message" class="mep-validation-message" style="display:none;"></div>
                         
@@ -222,8 +222,41 @@ $uyd_check = MEP_Helpers::check_useyourdrive_ready();
                                     echo '</p>';
                                     echo '</div>';
                                     
-                                    // Renderizza Use-your-Drive (mostra file E cartelle)
-                                    echo do_shortcode('[useyourdrive mode="files" filelayout="list" viewrole="administrator" downloadrole="all" candownloadzip="0" showsharelink="0" search="1" searchfrom="parent" showfiles="1" showfolders="1" include_ext="jpg,jpeg,png,gif,webp" maxheight="350px" dir="drive"]');
+                                    // Ottieni il primo account disponibile
+                                    $primary_account = \TheLion\UseyourDrive\Accounts::instance()->list_accounts();
+                                    $account_id = !empty($primary_account) ? reset($primary_account)->get_id() : '';
+                                    
+                                    // Renderizza Use-your-Drive con parametri corretti
+                                    // Mostra solo le CARTELLE (non i file) per una navigazione più pulita
+                                    $shortcode_params = [
+                                        'mode' => 'files',
+                                        'filelayout' => 'list',
+                                        'viewrole' => 'administrator',
+                                        'downloadrole' => 'none',
+                                        'candownloadzip' => '0',
+                                        'showsharelink' => '0',
+                                        'showfiles' => '0',  // Nascondi i file, mostra solo cartelle
+                                        'showfolders' => '1',
+                                        'search' => '1',
+                                        'searchfrom' => 'parent',
+                                        'maxheight' => '400px',
+                                        'showbreadcrumb' => '1',
+                                        'roottext' => 'Google Drive'
+                                    ];
+                                    
+                                    // Aggiungi account se disponibile
+                                    if (!empty($account_id)) {
+                                        $shortcode_params['account'] = $account_id;
+                                    }
+                                    
+                                    // Costruisci shortcode
+                                    $shortcode = '[useyourdrive';
+                                    foreach ($shortcode_params as $key => $value) {
+                                        $shortcode .= ' ' . $key . '="' . esc_attr($value) . '"';
+                                    }
+                                    $shortcode .= ']';
+                                    
+                                    echo do_shortcode($shortcode);
                                 }
                             }
                             ?>
@@ -237,45 +270,68 @@ $uyd_check = MEP_Helpers::check_useyourdrive_ready();
                     
                     <!-- Griglia Selezione Foto Manuale -->
                     <div id="mep-photo-selector-wrapper" style="display:none;">
-                        <hr style="margin: 30px 0; border: 0; border-top: 1px solid #dcdcde;">
+                        <hr style="margin: 30px 0; border: 0; border-top: 2px solid #2271b1;">
                         
                         <div class="mep-form-row">
-                            <label class="mep-label required">
-                                <span class="dashicons dashicons-images-alt2"></span>
-                                <?php _e('Seleziona 4 Foto per l\'Articolo', 'my-event-plugin'); ?>
-                            </label>
-                            <p class="mep-description">
-                                <?php _e('Clicca su 4 foto dalla griglia sottostante. Poi scegli quale usare come immagine di copertina.', 'my-event-plugin'); ?>
-                            </p>
+                            <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                                <h3 style="margin: 0 0 10px 0; color: white; display: flex; align-items: center; gap: 10px;">
+                                    <span class="dashicons dashicons-images-alt2" style="font-size: 24px; width: 24px; height: 24px;"></span>
+                                    <?php _e('Passo 2: Seleziona le Foto da Importare', 'my-event-plugin'); ?>
+                                </h3>
+                                <p style="margin: 0; opacity: 0.95; line-height: 1.6;">
+                                    <?php _e('📸 Clicca sulle miniature per selezionare 4 foto che verranno scaricate e importate nella galleria WordPress.', 'my-event-plugin'); ?><br>
+                                    <?php _e('🖼️ Poi scegli quale delle 4 foto usare come immagine di copertina dell\'articolo.', 'my-event-plugin'); ?>
+                                </p>
+                            </div>
                             
                             <div id="mep-selection-info" class="mep-selection-info">
-                                <span class="mep-selection-count"><?php _e('Foto selezionate:', 'my-event-plugin'); ?> <strong>0/4</strong></span>
+                                <div style="display: flex; align-items: center; gap: 10px;">
+                                    <span class="dashicons dashicons-format-gallery" style="color: #2271b1; font-size: 20px;"></span>
+                                    <span class="mep-selection-count" style="font-size: 15px;">
+                                        <?php _e('Foto selezionate:', 'my-event-plugin'); ?> 
+                                        <strong style="color: #2271b1; font-size: 18px;">0/4</strong>
+                                    </span>
+                                </div>
+                                <div id="mep-selection-help" style="font-size: 13px; color: #646970;">
+                                    <?php _e('Clicca sulle miniature per selezionarle', 'my-event-plugin'); ?>
+                                </div>
                             </div>
                             
                             <!-- Griglia Foto -->
                             <div id="mep-photo-grid" class="mep-photo-grid">
                                 <div class="mep-loading-grid">
                                     <span class="mep-spinner"></span>
-                                    <p><?php _e('Caricamento foto...', 'my-event-plugin'); ?></p>
+                                    <p><?php _e('Caricamento foto dalla cartella...', 'my-event-plugin'); ?></p>
                                 </div>
                             </div>
                             
                             <!-- Foto Selezionate -->
                             <div id="mep-selected-photos" class="mep-selected-photos" style="display:none;">
-                                <h3><?php _e('Foto Selezionate:', 'my-event-plugin'); ?></h3>
+                                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                                    <h3 style="margin: 0;"><?php _e('✓ Foto Che Verranno Importate:', 'my-event-plugin'); ?></h3>
+                                    <button type="button" id="mep-clear-selection" class="button button-secondary button-small">
+                                        <?php _e('Cancella Selezione', 'my-event-plugin'); ?>
+                                    </button>
+                                </div>
+                                <p style="margin: 0 0 15px 0; color: #646970; font-size: 13px;">
+                                    <?php _e('Queste 4 foto verranno scaricate da Google Drive e aggiunte alla galleria WordPress. Clicca sulla X per rimuoverle.', 'my-event-plugin'); ?>
+                                </p>
                                 <div id="mep-selected-photos-list" class="mep-selected-photos-list"></div>
                                 
-                                <div class="mep-featured-image-selector" style="margin-top: 20px;">
-                                    <label class="mep-label required">
+                                <div class="mep-featured-image-selector" style="margin-top: 25px;">
+                                    <label class="mep-label required" style="font-size: 15px;">
                                         <span class="dashicons dashicons-format-image"></span>
-                                        <?php _e('Quale foto usare come copertina?', 'my-event-plugin'); ?>
+                                        <?php _e('Passo 3: Scegli la Foto di Copertina', 'my-event-plugin'); ?>
                                     </label>
-                                    <select id="mep-featured-image-select" name="featured_image_index" class="mep-select" required>
+                                    <p style="margin: 8px 0; color: #646970; font-size: 13px;">
+                                        <?php _e('Questa sarà l\'immagine in evidenza che appare nelle anteprime dell\'articolo', 'my-event-plugin'); ?>
+                                    </p>
+                                    <select id="mep-featured-image-select" name="featured_image_index" class="mep-select" required style="max-width: 300px;">
                                         <option value=""><?php _e('-- Seleziona immagine di copertina --', 'my-event-plugin'); ?></option>
-                                        <option value="0"><?php _e('Foto 1', 'my-event-plugin'); ?></option>
-                                        <option value="1"><?php _e('Foto 2', 'my-event-plugin'); ?></option>
-                                        <option value="2"><?php _e('Foto 3', 'my-event-plugin'); ?></option>
-                                        <option value="3"><?php _e('Foto 4', 'my-event-plugin'); ?></option>
+                                        <option value="0"><?php _e('📷 Foto 1 (Prima)', 'my-event-plugin'); ?></option>
+                                        <option value="1"><?php _e('📷 Foto 2', 'my-event-plugin'); ?></option>
+                                        <option value="2"><?php _e('📷 Foto 3', 'my-event-plugin'); ?></option>
+                                        <option value="3"><?php _e('📷 Foto 4 (Ultima)', 'my-event-plugin'); ?></option>
                                     </select>
                                 </div>
                             </div>
