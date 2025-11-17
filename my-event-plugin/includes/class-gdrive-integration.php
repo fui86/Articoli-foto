@@ -70,10 +70,32 @@ class MEP_GDrive_Integration {
             return new WP_Error('empty_folder_id', __('ID cartella vuoto', 'my-event-plugin'));
         }
         
+        // Verifica che Use-your-Drive sia disponibile
+        if (!class_exists('TheLion\UseyourDrive\Client')) {
+            return new WP_Error('uyd_not_available', __('Use-your-Drive Client non disponibile', 'my-event-plugin'));
+        }
+        
         try {
-            $folder = \TheLion\UseyourDrive\Client::instance()->get_folder($folder_id);
+            // Log per debug
+            MEP_Helpers::log_info("Tentativo di accesso alla cartella: {$folder_id}");
             
-            if (empty($folder['contents'])) {
+            // Ottieni il client
+            $client = \TheLion\UseyourDrive\Client::instance();
+            
+            if (!$client) {
+                return new WP_Error('client_error', __('Impossibile ottenere il client Use-your-Drive', 'my-event-plugin'));
+            }
+            
+            // Ottieni la cartella
+            $folder = $client->get_folder($folder_id);
+            
+            if (empty($folder)) {
+                MEP_Helpers::log_error("Cartella {$folder_id} non trovata o vuota");
+                return new WP_Error('folder_not_found', __('Cartella non trovata. Verifica che l\'ID sia corretto e che l\'account abbia accesso.', 'my-event-plugin'));
+            }
+            
+            if (!isset($folder['contents']) || empty($folder['contents'])) {
+                MEP_Helpers::log_error("Cartella {$folder_id} non ha contenuti");
                 return new WP_Error('empty_folder', __('Cartella vuota o non accessibile', 'my-event-plugin'));
             }
             
@@ -118,11 +140,22 @@ class MEP_GDrive_Integration {
             
             MEP_Helpers::log_info("Trovate " . count($photos) . " foto nella cartella {$folder_id}");
             
+            // Se non ci sono foto
+            if (empty($photos)) {
+                return new WP_Error('no_photos', __('Nessuna foto trovata nella cartella. Assicurati che la cartella contenga file immagine (JPG, PNG, GIF, WebP).', 'my-event-plugin'));
+            }
+            
             return $photos;
             
         } catch (Exception $e) {
-            MEP_Helpers::log_error("Errore nel recupero foto dalla cartella {$folder_id}", $e->getMessage());
-            return new WP_Error('api_error', $e->getMessage());
+            MEP_Helpers::log_error("Errore nel recupero foto dalla cartella {$folder_id}", [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return new WP_Error('api_error', sprintf(
+                __('Errore API Use-your-Drive: %s', 'my-event-plugin'),
+                $e->getMessage()
+            ));
         }
     }
     

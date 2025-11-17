@@ -304,29 +304,76 @@ class My_Event_Plugin {
      * Handler AJAX per recuperare le foto da una cartella
      */
     public function handle_get_folder_photos() {
+        // Verifica nonce
         check_ajax_referer('mep_nonce', 'nonce');
         
+        // Log richiesta
+        MEP_Helpers::log_info("AJAX: handle_get_folder_photos chiamato");
+        
+        // Ottieni folder ID
         $folder_id = sanitize_text_field($_POST['folder_id'] ?? '');
         
         if (empty($folder_id)) {
-            wp_send_json_error(['message' => __('ID cartella mancante', 'my-event-plugin')]);
+            MEP_Helpers::log_error("AJAX: ID cartella mancante");
+            wp_send_json_error([
+                'message' => __('ID cartella mancante', 'my-event-plugin'),
+                'code' => 'missing_folder_id'
+            ]);
+            return;
         }
         
-        // Ottieni la lista delle foto con thumbnail
-        $photos = MEP_GDrive_Integration::get_photos_list_with_thumbnails($folder_id);
+        MEP_Helpers::log_info("AJAX: Recupero foto dalla cartella: {$folder_id}");
         
-        if (is_wp_error($photos)) {
-            wp_send_json_error(['message' => $photos->get_error_message()]);
+        try {
+            // Ottieni la lista delle foto con thumbnail
+            $photos = MEP_GDrive_Integration::get_photos_list_with_thumbnails($folder_id);
+            
+            if (is_wp_error($photos)) {
+                MEP_Helpers::log_error("AJAX: Errore WP_Error", [
+                    'code' => $photos->get_error_code(),
+                    'message' => $photos->get_error_message()
+                ]);
+                
+                wp_send_json_error([
+                    'message' => $photos->get_error_message(),
+                    'code' => $photos->get_error_code(),
+                    'folder_id' => $folder_id
+                ]);
+                return;
+            }
+            
+            if (empty($photos)) {
+                MEP_Helpers::log_error("AJAX: Nessuna foto trovata");
+                wp_send_json_error([
+                    'message' => __('Nessuna foto trovata nella cartella', 'my-event-plugin'),
+                    'code' => 'no_photos'
+                ]);
+                return;
+            }
+            
+            MEP_Helpers::log_info("AJAX: Successo! Trovate " . count($photos) . " foto");
+            
+            wp_send_json_success([
+                'photos' => $photos,
+                'count' => count($photos),
+                'folder_id' => $folder_id
+            ]);
+            
+        } catch (Exception $e) {
+            MEP_Helpers::log_error("AJAX: Eccezione catturata", [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            wp_send_json_error([
+                'message' => sprintf(
+                    __('Errore server: %s', 'my-event-plugin'),
+                    $e->getMessage()
+                ),
+                'code' => 'exception',
+                'folder_id' => $folder_id
+            ]);
         }
-        
-        if (empty($photos)) {
-            wp_send_json_error(['message' => __('Nessuna foto trovata nella cartella', 'my-event-plugin')]);
-        }
-        
-        wp_send_json_success([
-            'photos' => $photos,
-            'count' => count($photos)
-        ]);
     }
     
     /**

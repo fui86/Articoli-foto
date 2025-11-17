@@ -245,7 +245,10 @@
                     folder_id: folderId
                 },
                 success: function(response) {
-                    if (response.success && response.data.photos.length > 0) {
+                    console.log('✅ Risposta AJAX ricevuta:', response);
+                    
+                    if (response.success && response.data.photos && response.data.photos.length > 0) {
+                        console.log('📸 Renderizzazione ' + response.data.photos.length + ' foto');
                         renderPhotoGrid(response.data.photos);
                         
                         // Mostra messaggio di successo
@@ -255,24 +258,60 @@
                             .html('✓ Trovate ' + response.data.photos.length + ' foto. Seleziona 4 immagini dalla griglia sottostante.')
                             .slideDown();
                     } else {
-                        $('#mep-photo-grid').html('<div class="mep-loading-grid"><p style="color: #d63638;">❌ Nessuna foto trovata in questa cartella.</p></div>');
+                        console.error('❌ Risposta non valida o nessuna foto:', response);
+                        
+                        const errorMsg = response.data && response.data.message 
+                            ? response.data.message 
+                            : 'Nessuna foto trovata in questa cartella.';
+                        
+                        $('#mep-photo-grid').html('<div class="mep-loading-grid"><p style="color: #d63638;">❌ ' + errorMsg + '</p></div>');
                         
                         MEP.folderValidationMsg
                             .removeClass('success')
                             .addClass('error')
-                            .html('❌ Nessuna foto trovata nella cartella selezionata. Scegli una cartella diversa.')
+                            .html('❌ ' + errorMsg)
                             .slideDown();
                     }
                 },
                 error: function(xhr, status, error) {
-                    console.error('Errore AJAX:', {xhr, status, error});
+                    console.error('❌ Errore AJAX:', {
+                        xhr: xhr,
+                        status: status,
+                        error: error,
+                        responseText: xhr.responseText,
+                        statusCode: xhr.status
+                    });
                     
-                    $('#mep-photo-grid').html('<div class="mep-loading-grid"><p style="color: #d63638;">❌ Errore durante il caricamento delle foto.</p></div>');
+                    // Prova a parsare la risposta JSON
+                    let errorMessage = 'Errore di connessione. ';
+                    try {
+                        const response = JSON.parse(xhr.responseText);
+                        if (response.data && response.data.message) {
+                            errorMessage = response.data.message;
+                        }
+                    } catch (e) {
+                        console.error('Impossibile parsare risposta errore:', e);
+                        errorMessage += 'Codice errore: ' + xhr.status;
+                    }
+                    
+                    $('#mep-photo-grid').html(
+                        '<div class="mep-loading-grid">' +
+                        '<p style="color: #d63638;">❌ ' + errorMessage + '</p>' +
+                        '<details style="margin-top: 10px; font-size: 12px; color: #646970;">' +
+                        '<summary style="cursor: pointer;">Dettagli tecnici</summary>' +
+                        '<pre style="background: #f5f5f5; padding: 10px; margin-top: 5px; overflow: auto;">' +
+                        'Status: ' + xhr.status + '\n' +
+                        'Error: ' + error + '\n' +
+                        'Response: ' + xhr.responseText.substring(0, 500) +
+                        '</pre>' +
+                        '</details>' +
+                        '</div>'
+                    );
                     
                     MEP.folderValidationMsg
                         .removeClass('success')
                         .addClass('error')
-                        .html('❌ Errore di connessione. Riprova o ricarica la pagina.')
+                        .html('❌ ' + errorMessage + ' <a href="#" onclick="location.reload(); return false;">Ricarica pagina</a>')
                         .slideDown();
                 }
             });
