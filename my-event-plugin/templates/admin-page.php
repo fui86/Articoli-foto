@@ -166,146 +166,62 @@ $uyd_check = MEP_Helpers::check_useyourdrive_ready();
                 
                 <!-- Folder Google Drive -->
                 <div class="mep-section mep-gdrive-section">
-                    <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                        <h2 style="margin: 0 0 10px 0; color: white; display: flex; align-items: center; gap: 10px; font-size: 20px;">
-                            <span class="dashicons dashicons-cloud" style="font-size: 28px; width: 28px; height: 28px;"></span>
-                            <?php _e('Passo 1: Seleziona la Cartella con le Foto', 'my-event-plugin'); ?>
+                    <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; padding: 25px; border-radius: 10px; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(17, 153, 142, 0.2);">
+                        <h2 style="margin: 0 0 12px 0; color: white; display: flex; align-items: center; gap: 12px; font-size: 22px;">
+                            <span class="dashicons dashicons-cloud" style="font-size: 32px; width: 32px; height: 32px;"></span>
+                            <?php _e('📁 Passo 1: Seleziona la Cartella Google Drive', 'my-event-plugin'); ?>
                         </h2>
-                        <p style="margin: 0; opacity: 0.95; line-height: 1.6;">
-                            <?php _e('📁 Naviga nel tuo Google Drive e clicca sulla cartella che contiene le foto dell\'evento.', 'my-event-plugin'); ?><br>
-                            <?php _e('✨ Dopo aver selezionato la cartella, vedrai tutte le foto disponibili per l\'importazione.', 'my-event-plugin'); ?>
+                        <p style="margin: 0; opacity: 0.95; line-height: 1.7; font-size: 15px;">
+                            <?php _e('Incolla l\'ID della cartella Google Drive che contiene le foto dell\'evento.', 'my-event-plugin'); ?><br>
+                            <?php _e('✨ Il plugin caricherà automaticamente tutte le foto disponibili per la selezione!', 'my-event-plugin'); ?>
                         </p>
                     </div>
                     
                     <div class="mep-form-row">
                         
-                        <!-- Metodo Alternativo: Input Manuale ID Cartella -->
-                        <div style="margin-bottom: 20px; padding: 15px; background: linear-gradient(135deg, #fff9e6 0%, #fff4d6 100%); border: 2px solid #dba617; border-radius: 8px;">
-                            <label style="display: flex; align-items: center; gap: 8px; font-weight: 600; margin-bottom: 10px; color: #1d2327;">
-                                <span class="dashicons dashicons-admin-links" style="color: #dba617; font-size: 20px; width: 20px; height: 20px;"></span>
-                                <?php _e('⚡ Metodo Rapido: Incolla l\'ID della Cartella', 'my-event-plugin'); ?>
+                        <!-- Input ID Cartella Google Drive -->
+                        <div style="margin-bottom: 20px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);">
+                            <label style="display: flex; align-items: center; gap: 10px; font-weight: 600; margin-bottom: 15px; color: white; font-size: 16px;">
+                                <span class="dashicons dashicons-admin-links" style="font-size: 24px; width: 24px; height: 24px;"></span>
+                                <?php _e('🔗 ID della Cartella Google Drive', 'my-event-plugin'); ?>
                             </label>
-                            <div style="display: flex; gap: 10px; align-items: flex-start;">
+                            <div style="display: flex; gap: 12px; align-items: flex-start;">
                                 <input type="text" 
                                        id="mep-manual-folder-id" 
                                        placeholder="<?php esc_attr_e('Incolla qui l\'ID: 1a2b3c4d5e6f7g8h9i0j', 'my-event-plugin'); ?>"
-                                       style="flex: 1; padding: 10px 14px; border: 2px solid #dba617; border-radius: 6px; font-family: monospace; font-size: 13px;">
+                                       style="flex: 1; padding: 12px 16px; border: 3px solid rgba(255,255,255,0.3); border-radius: 8px; font-family: monospace; font-size: 14px; background: white;">
                                 <button type="button" 
                                         id="mep-load-manual-folder" 
-                                        class="button button-primary"
-                                        style="background: #dba617; border-color: #dba617; box-shadow: none; padding: 10px 20px;">
-                                    <span class="dashicons dashicons-download" style="margin-top: 3px;"></span>
+                                        class="button button-primary button-hero"
+                                        style="background: #38ef7d; border-color: #38ef7d; color: #1d2327; font-weight: 600; box-shadow: 0 2px 8px rgba(56, 239, 125, 0.4); padding: 12px 30px; height: auto;">
+                                    <span class="dashicons dashicons-download" style="margin-top: 4px;"></span>
                                     <?php _e('Carica Foto', 'my-event-plugin'); ?>
                                 </button>
                             </div>
-                            <details style="margin-top: 12px;">
-                                <summary style="cursor: pointer; color: #856404; font-size: 12px; font-weight: 600;">
+                            <details style="margin-top: 15px; background: rgba(255,255,255,0.15); padding: 12px; border-radius: 6px;">
+                                <summary style="cursor: pointer; color: white; font-size: 13px; font-weight: 600; user-select: none;">
                                     ❓ Come ottenere l'ID della cartella?
                                 </summary>
-                                <ol style="margin: 10px 0 0 0; padding-left: 20px; font-size: 12px; color: #646970; line-height: 1.6;">
-                                    <li>Apri <a href="https://drive.google.com" target="_blank" style="color: #2271b1;">Google Drive</a></li>
-                                    <li>Naviga nella cartella con le foto</li>
-                                    <li>Guarda l'URL: <code style="background: #f0f0f0; padding: 2px 6px; border-radius: 3px;">drive.google.com/drive/folders/<strong>ID_QUI</strong></code></li>
-                                    <li>Copia l'ID e incollalo nel campo sopra</li>
+                                <ol style="margin: 12px 0 0 0; padding-left: 20px; font-size: 13px; color: rgba(255,255,255,0.95); line-height: 1.8;">
+                                    <li>Apri <a href="https://drive.google.com" target="_blank" style="color: #38ef7d; font-weight: 600; text-decoration: underline;">Google Drive</a> nel browser</li>
+                                    <li>Naviga nella cartella con le foto dell'evento</li>
+                                    <li>Guarda l'URL nella barra degli indirizzi:<br>
+                                        <code style="background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 5px; font-size: 11px;">
+                                            drive.google.com/drive/folders/<strong style="color: #38ef7d;">1a2b3c4d5e6f7g8h9i0j</strong>
+                                        </code>
+                                    </li>
+                                    <li>Copia la parte finale dell'URL (dopo <code style="background: rgba(0,0,0,0.2); padding: 2px 4px;">/folders/</code>)</li>
+                                    <li>Incollala nel campo sopra e clicca <strong>"Carica Foto"</strong></li>
                                 </ol>
+                                <div style="margin-top: 12px; padding: 10px; background: rgba(255, 193, 7, 0.2); border-left: 3px solid #ffc107; border-radius: 4px;">
+                                    <p style="margin: 0; font-size: 12px; color: rgba(255,255,255,0.95);">
+                                        <strong>💡 Suggerimento:</strong> Assicurati che l'account Use-your-Drive abbia accesso alla cartella, altrimenti vedrai un errore di permessi.
+                                    </p>
+                                </div>
                             </details>
                         </div>
                         
                         <div id="mep-folder-validation-message" class="mep-validation-message" style="display:none;"></div>
-                        
-                        <!-- Use-your-Drive Folder Selector -->
-                        <div class="mep-folder-selector-container" id="mep-uyd-browser">
-                            <?php
-                            // Verifica che Use-your-Drive sia disponibile
-                            if (!shortcode_exists('useyourdrive')) {
-                                // Plugin non attivo
-                                echo '<div style="padding: 20px; background: #f8d7da; border: 1px solid #d63638; border-radius: 4px;">';
-                                echo '<p style="margin: 0; color: #721c24;"><strong>❌ Errore:</strong> Use-your-Drive non è attivo!</p>';
-                                echo '<p style="margin: 10px 0 0 0;"><a href="' . admin_url('plugins.php') . '" class="button">Attiva Use-your-Drive</a></p>';
-                                echo '</div>';
-                            } elseif (!class_exists('TheLion\UseyourDrive\Accounts')) {
-                                // Classe mancante
-                                echo '<div style="padding: 20px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px;">';
-                                echo '<p style="margin: 0; color: #856404;"><strong>⚠️ Attenzione:</strong> Use-your-Drive è attivo ma non completamente caricato.</p>';
-                                echo '<p style="margin: 10px 0 0 0;">Prova a ricaricare la pagina o reinstalla Use-your-Drive.</p>';
-                                echo '</div>';
-                            } else {
-                                // Verifica account Google Drive
-                                $accounts = \TheLion\UseyourDrive\Accounts::instance()->list_accounts();
-                                if (empty($accounts)) {
-                                    // Nessun account configurato
-                                    echo '<div style="padding: 20px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px;">';
-                                    echo '<p style="margin: 0; color: #856404;"><strong>⚠️ Configurazione Richiesta:</strong> Devi collegare un account Google Drive prima di usare questa funzionalità.</p>';
-                                    echo '<ol style="margin: 10px 0; padding-left: 20px; color: #856404;">';
-                                    echo '<li>Vai nelle <strong>Impostazioni Use-your-Drive</strong></li>';
-                                    echo '<li>Clicca su <strong>"Accounts"</strong></li>';
-                                    echo '<li>Clicca su <strong>"Add Account"</strong></li>';
-                                    echo '<li>Autorizza l\'accesso a Google Drive</li>';
-                                    echo '<li>Torna qui e ricarica la pagina</li>';
-                                    echo '</ol>';
-                                    echo '<p style="margin: 10px 0 0 0;"><a href="' . admin_url('admin.php?page=use_your_drive_settings') . '" class="button button-primary">Vai alle Impostazioni Use-your-Drive</a></p>';
-                                    echo '</div>';
-                                } else {
-                                    // Tutto OK - renderizza lo shortcode
-                                    echo '<div style="margin-bottom: 15px; padding: 15px; background: linear-gradient(to right, #e3f2fd, #f0f6fc); border: 2px solid #2271b1; border-radius: 8px; box-shadow: 0 2px 8px rgba(34, 113, 177, 0.15);">';
-                                    echo '<div style="display: flex; align-items: flex-start; gap: 15px;">';
-                                    echo '<span class="dashicons dashicons-info" style="color: #2271b1; font-size: 28px; width: 28px; height: 28px; flex-shrink: 0; margin-top: 2px;"></span>';
-                                    echo '<div>';
-                                    echo '<p style="margin: 0 0 10px 0; font-size: 14px; font-weight: 600; color: #1d2327;">';
-                                    echo '📂 Come Selezionare la Cartella:';
-                                    echo '</p>';
-                                    echo '<ol style="margin: 0; padding-left: 20px; color: #1d2327; line-height: 1.8;">';
-                                    echo '<li><strong>Naviga</strong> nel browser qui sotto per trovare la cartella con le foto</li>';
-                                    echo '<li><strong>Clicca sul NOME della cartella</strong> (non entrare dentro)</li>';
-                                    echo '<li>Vedrai apparire la <strong>griglia con le miniature</strong> delle foto sotto</li>';
-                                    echo '<li>Poi potrai <strong>selezionare le 4 foto</strong> cliccando sulle miniature</li>';
-                                    echo '</ol>';
-                                    echo '<p style="margin: 10px 0 0 0; padding: 8px 10px; background: rgba(255, 255, 255, 0.7); border-left: 3px solid #dba617; font-size: 12px; color: #856404; border-radius: 4px;">';
-                                    echo '⚠️ <strong>Nota:</strong> Qui sotto vedi SOLO le cartelle. Le foto singole appariranno nella griglia dopo che selezioni una cartella.';
-                                    echo '</p>';
-                                    echo '</div>';
-                                    echo '</div>';
-                                    echo '</div>';
-                                    
-                                    // Verifica che lo shortcode esista
-                                    if (!shortcode_exists('useyourdrive')) {
-                                        echo '<div style="padding: 15px; background: #ffe5e8; border-left: 4px solid #d63638; border-radius: 4px; margin-top: 10px;">';
-                                        echo '<strong>⚠️ Errore:</strong> Lo shortcode [useyourdrive] non è disponibile. ';
-                                        echo 'Verifica che Use-your-Drive sia installato e attivo.';
-                                        echo '</div>';
-                                    } else {
-                                        // Shortcode che mostra sia cartelle che file
-                                        $shortcode = '[useyourdrive mode="files" viewrole="administrator" candownloadzip="0" showsharelink="0" showfiles="1" showfolders="1" include_ext="jpg,jpeg,png,gif,webp" maxheight="400px" showbreadcrumb="1" lightbox="0"]';
-                                        
-                                        // Debug: mostra lo shortcode generato
-                                        if (defined('WP_DEBUG') && WP_DEBUG) {
-                                            echo '<!-- Shortcode generato: ' . esc_html($shortcode) . ' -->';
-                                            echo '<!-- Accounts: ' . print_r($accounts, true) . ' -->';
-                                        }
-                                        
-                                        // Renderizza lo shortcode
-                                        $output = do_shortcode($shortcode);
-                                        
-                                        // Verifica se l'output è vuoto
-                                        if (empty(trim($output))) {
-                                            echo '<div style="padding: 15px; background: #fff3cd; border-left: 4px solid #dba617; border-radius: 4px; margin-top: 10px;">';
-                                            echo '<strong>⚠️ Attenzione:</strong> Use-your-Drive non ha generato alcun output. ';
-                                            echo 'Possibili cause:<br>';
-                                            echo '<ul style="margin: 10px 0 0 20px; padding: 0;">';
-                                            echo '<li>Nessun account Google Drive è autorizzato</li>';
-                                            echo '<li>Le autorizzazioni dell\'account sono scadute</li>';
-                                            echo '<li>Use-your-Drive ha bisogno di essere riconfigurato</li>';
-                                            echo '</ul>';
-                                            echo '<p style="margin: 10px 0 0 0;"><a href="' . admin_url('admin.php?page=use_your_drive_settings') . '" class="button button-primary">Configura Use-your-Drive</a></p>';
-                                            echo '</div>';
-                                        } else {
-                                            echo $output;
-                                        }
-                                    }
-                                }
-                            }
-                            ?>
-                        </div>
                         
                         <!-- Campi nascosti popolati dal selector -->
                         <input type="hidden" name="event_folder_id" id="event_folder_id">
