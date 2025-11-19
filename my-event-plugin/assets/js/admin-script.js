@@ -373,10 +373,16 @@
                 $list.empty();
                 
                 this.selectedPhotos.forEach((photo, index) => {
+                    // Usa proxy per le miniature
+                    const proxyUrl = mepData.ajax_url + 
+                        '?action=mep_proxy_thumbnail' + 
+                        '&nonce=' + mepData.nonce + 
+                        '&url=' + encodeURIComponent(photo.thumbnail);
+                    
                     $list.append(`
                         <div class="mep-selected-photo-item" data-photo-id="${photo.id}" style="position: relative;">
                             <div class="mep-selected-photo-number">${index + 1}</div>
-                            <img src="${photo.thumbnail}" alt="${photo.name}">
+                            <img src="${proxyUrl}" alt="${photo.name}">
                             <button type="button" class="mep-remove-photo" data-photo-id="${photo.id}">
                                 <span class="dashicons dashicons-no-alt"></span>
                             </button>
@@ -494,10 +500,17 @@
             }
             
             photos.forEach(photo => {
+                // Usa proxy per le miniature (richiedono OAuth)
+                const proxyUrl = mepData.ajax_url + 
+                    '?action=mep_proxy_thumbnail' + 
+                    '&nonce=' + mepData.nonce + 
+                    '&url=' + encodeURIComponent(photo.thumbnail);
+                
                 const $item = $(`
                     <div class="mep-photo-item" data-photo-id="${photo.id}">
                         <div class="mep-photo-thumb">
-                            <img src="${photo.thumbnail}" alt="${photo.name}" loading="lazy">
+                            <img src="${proxyUrl}" alt="${photo.name}" loading="lazy" 
+                                 onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'200\' height=\'200\'%3E%3Crect fill=\'%23ddd\' width=\'200\' height=\'200\'/%3E%3Ctext x=\'50%25\' y=\'50%25\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23999\' font-size=\'14\' font-family=\'Arial\'%3EErrore caricamento%3C/text%3E%3C/svg%3E';">
                             <div class="mep-photo-overlay">
                                 <button type="button" class="mep-select-photo-btn">Seleziona</button>
                             </div>
@@ -581,6 +594,22 @@
                     console.log('✅ Risposta creazione:', response);
                     
                     if (response.success) {
+                        // Genera HTML per i link delle foto importate
+                        let photoLinksHtml = '';
+                        if (response.data.photo_urls && response.data.photo_urls.length > 0) {
+                            photoLinksHtml = '<div style="margin-top: 15px; padding: 12px; background: white; border: 1px solid #ddd; border-radius: 4px;">';
+                            photoLinksHtml += '<p style="margin: 0 0 8px 0; font-weight: 600;">📸 Link Foto Importate:</p>';
+                            photoLinksHtml += '<ul style="margin: 0; padding-left: 20px; font-size: 12px; font-family: monospace;">';
+                            response.data.photo_urls.forEach((url, idx) => {
+                                const isFeatured = (idx === parseInt(response.data.featured_index));
+                                photoLinksHtml += `<li style="margin: 5px 0;">
+                                    ${isFeatured ? '<strong style="color: #d63638;">🌟 COPERTINA:</strong> ' : ''}
+                                    <a href="${url}" target="_blank">${url}</a>
+                                </li>`;
+                            });
+                            photoLinksHtml += '</ul></div>';
+                        }
+                        
                         MEP.statusMsg
                             .html(`
                                 <div style="background: #d4edda; color: #155724; padding: 15px; border-radius: 4px; border-left: 4px solid #28a745;">
@@ -589,14 +618,22 @@
                                         <a href="${response.data.edit_url}" class="button button-primary">Modifica Evento</a>
                                         <a href="${response.data.view_url}" class="button" target="_blank">Visualizza</a>
                                     </p>
+                                    ${photoLinksHtml}
                                 </div>
                             `)
                             .slideDown();
                         
-                        // Reset form
+                        // Auto-scroll verso il messaggio di successo
+                        $('html, body').animate({
+                            scrollTop: MEP.statusMsg.offset().top - 100
+                        }, 800);
+                        
+                        // Reset form dopo 5 secondi (tempo per copiare i link)
                         setTimeout(() => {
-                            location.reload();
-                        }, 2000);
+                            if (confirm('Vuoi creare un altro evento?')) {
+                                location.reload();
+                            }
+                        }, 5000);
                     } else {
                         MEP.statusMsg
                             .html(`<div style="background: #f8d7da; color: #721c24; padding: 15px; border-radius: 4px;">❌ <strong>Errore:</strong> ${response.data.message}</div>`)

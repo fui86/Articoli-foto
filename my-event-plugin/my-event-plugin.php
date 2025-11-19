@@ -70,6 +70,7 @@ class My_Event_Plugin {
         add_action('wp_ajax_mep_get_folder_photos', [$this, 'handle_get_folder_photos']);
         add_action('wp_ajax_mep_get_template_preview', [$this, 'handle_get_template_preview']);
         add_action('wp_ajax_mep_browse_gdrive_folder', [$this, 'handle_browse_gdrive_folder']); // 🚀 Nuovo browser
+        add_action('wp_ajax_mep_proxy_thumbnail', [$this, 'handle_proxy_thumbnail']); // 🖼️ Proxy miniature
         
         // Shortcode per frontend (opzionale)
         add_shortcode('my_event_form', [$this, 'render_frontend_form']);
@@ -552,6 +553,54 @@ class My_Event_Plugin {
                 'error_details' => $e->getMessage()
             ]);
         }
+    }
+    
+    /**
+     * Handler AJAX per fare proxy delle miniature Google Drive
+     * Le miniature richiedono autenticazione OAuth, questo endpoint le serve al browser
+     * 🖼️ Proxy per miniature
+     */
+    public function handle_proxy_thumbnail() {
+        // Verifica nonce
+        check_ajax_referer('mep_nonce', 'nonce');
+        
+        // Ottieni URL miniatura
+        $thumbnail_url = isset($_GET['url']) ? $_GET['url'] : '';
+        
+        if (empty($thumbnail_url)) {
+            status_header(400);
+            die('Missing URL');
+        }
+        
+        // Ottieni access token
+        $access_token = MEP_Google_OAuth::get_access_token();
+        
+        if (is_wp_error($access_token)) {
+            status_header(403);
+            die('Unauthorized');
+        }
+        
+        // Scarica l'immagine con autenticazione
+        $response = wp_remote_get($thumbnail_url, [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $access_token
+            ],
+            'timeout' => 15
+        ]);
+        
+        if (is_wp_error($response)) {
+            status_header(500);
+            die('Error fetching thumbnail');
+        }
+        
+        $body = wp_remote_retrieve_body($response);
+        $content_type = wp_remote_retrieve_header($response, 'content-type');
+        
+        // Serve l'immagine
+        header('Content-Type: ' . ($content_type ?: 'image/jpeg'));
+        header('Cache-Control: public, max-age=3600');
+        echo $body;
+        die();
     }
     
     /**
