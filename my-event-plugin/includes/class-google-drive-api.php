@@ -19,7 +19,7 @@ class MEP_Google_Drive_API {
     const API_BASE_URL = 'https://www.googleapis.com/drive/v3';
     
     /**
-     * Ottieni access token da Use-your-Drive
+     * Ottieni access token OAuth (dalla nostra classe OAuth)
      * 
      * @return string|WP_Error Token o WP_Error
      */
@@ -29,40 +29,18 @@ class MEP_Google_Drive_API {
             return self::$access_token;
         }
         
-        try {
-            // Verifica che Use-your-Drive sia disponibile
-            if (!class_exists('TheLion\UseyourDrive\Accounts')) {
-                return new WP_Error('uyd_not_available', __('Use-your-Drive non disponibile', 'my-event-plugin'));
-            }
-            
-            // Ottieni il primo account autorizzato
-            $accounts = \TheLion\UseyourDrive\Accounts::instance()->list_accounts();
-            
-            if (empty($accounts)) {
-                return new WP_Error('no_accounts', __('Nessun account Google Drive configurato in Use-your-Drive', 'my-event-plugin'));
-            }
-            
-            // Trova il primo account con token valido
-            foreach ($accounts as $account) {
-                $auth = $account->get_authorization();
-                
-                if ($auth && $auth->has_access_token()) {
-                    $token = $auth->get_access_token();
-                    
-                    if (!empty($token)) {
-                        self::$access_token = $token;
-                        MEP_Helpers::log_info("Token OAuth ottenuto da Use-your-Drive");
-                        return $token;
-                    }
-                }
-            }
-            
-            return new WP_Error('no_valid_token', __('Nessun account ha un token valido. Riautorizza in Use-your-Drive.', 'my-event-plugin'));
-            
-        } catch (Throwable $e) {
-            MEP_Helpers::log_error("Errore ottenimento token", $e->getMessage());
-            return new WP_Error('token_error', $e->getMessage());
+        // Usa la nostra classe OAuth
+        $token = MEP_Google_OAuth::get_access_token();
+        
+        if (is_wp_error($token)) {
+            MEP_Helpers::log_error("❌ Errore ottenimento token OAuth", $token->get_error_message());
+            return $token;
         }
+        
+        self::$access_token = $token;
+        MEP_Helpers::log_info("✅ Token OAuth ottenuto");
+        
+        return $token;
     }
     
     /**

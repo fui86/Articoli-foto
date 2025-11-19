@@ -2,13 +2,12 @@
 /**
  * Plugin Name: Gestore Eventi Automatico
  * Plugin URI: https://tuosito.it
- * Description: Crea automaticamente articoli per eventi con foto da Google Drive usando Use-your-Drive
- * Version: 1.0.0
+ * Description: Crea automaticamente articoli per eventi con foto da Google Drive con OAuth nativo
+ * Version: 1.2.0
  * Author: Il Tuo Nome
  * Author URI: https://tuosito.it
  * Requires at least: 5.8
  * Requires PHP: 7.4
- * Requires Plugins: use-your-drive
  * License: GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: my-event-plugin
@@ -102,42 +101,42 @@ class My_Event_Plugin {
      */
     private function load_dependencies() {
         require_once MEP_PLUGIN_DIR . 'includes/class-helpers.php';
-        require_once MEP_PLUGIN_DIR . 'includes/class-google-drive-api.php'; // 🚀 Nuova API diretta
+        require_once MEP_PLUGIN_DIR . 'includes/class-google-oauth.php'; // 🔐 OAuth Google
+        require_once MEP_PLUGIN_DIR . 'includes/class-google-drive-api.php'; // 🚀 API diretta
         require_once MEP_PLUGIN_DIR . 'includes/class-post-creator.php';
         require_once MEP_PLUGIN_DIR . 'includes/class-gdrive-integration.php';
     }
     
     /**
-     * Verifica che Use-your-Drive sia installato e attivo
+     * Verifica configurazione OAuth Google
      */
     public function check_dependencies() {
-        if (!class_exists('TheLion\UseyourDrive\Core')) {
-            add_action('admin_notices', [$this, 'dependency_notice']);
-            deactivate_plugins(plugin_basename(__FILE__));
-            return false;
-        }
-        
-        // Verifica che ci sia almeno un account connesso
-        $check = MEP_Helpers::check_useyourdrive_ready();
-        if (is_wp_error($check)) {
-            add_action('admin_notices', function() use ($check) {
-                echo '<div class="notice notice-warning"><p>';
-                echo '<strong>Gestore Eventi Automatico:</strong> ' . esc_html($check->get_error_message());
-                echo '</p></div>';
-            });
+        // Verifica OAuth solo se si è in una pagina del plugin
+        if (isset($_GET['page']) && in_array($_GET['page'], ['my-event-creator', 'my-event-settings'])) {
+            if (!MEP_Google_OAuth::is_authorized()) {
+                add_action('admin_notices', [$this, 'oauth_notice']);
+            }
         }
         
         return true;
     }
     
     /**
-     * Notice per dipendenze mancanti
+     * Notice se OAuth non configurato
      */
-    public function dependency_notice() {
-        echo '<div class="notice notice-error"><p>';
-        echo '<strong>Gestore Eventi Automatico</strong> richiede il plugin ';
-        echo '<strong><a href="https://www.wpcloudplugins.com/" target="_blank">Use-your-Drive</a></strong> per funzionare.';
-        echo '</p></div>';
+    public function oauth_notice() {
+        $settings_url = admin_url('admin.php?page=my-event-settings');
+        ?>
+        <div class="notice notice-warning">
+            <p>
+                <strong><?php _e('Gestore Eventi Automatico', 'my-event-plugin'); ?>:</strong>
+                <?php printf(
+                    __('⚠️ Google Drive non è autorizzato. <a href="%s"><strong>Configura OAuth nelle Impostazioni</strong></a> per usare il browser cartelle.', 'my-event-plugin'),
+                    esc_url($settings_url)
+                ); ?>
+            </p>
+        </div>
+        <?php
     }
     
     /**

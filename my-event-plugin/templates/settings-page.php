@@ -5,6 +5,33 @@
 
 defined('ABSPATH') || exit;
 
+// Gestisci callback OAuth Google
+if (isset($_GET['google_auth']) && $_GET['google_auth'] === 'callback') {
+    if (isset($_GET['code'])) {
+        // Verifica state per sicurezza
+        if (!isset($_GET['state']) || !wp_verify_nonce($_GET['state'], 'mep_google_oauth')) {
+            echo '<div class="notice notice-error"><p>' . __('Errore: richiesta non valida (state mismatch)', 'my-event-plugin') . '</p></div>';
+        } else {
+            // Scambia code con token
+            $result = MEP_Google_OAuth::exchange_code_for_token($_GET['code']);
+            
+            if (is_wp_error($result)) {
+                echo '<div class="notice notice-error"><p><strong>Errore OAuth:</strong> ' . esc_html($result->get_error_message()) . '</p></div>';
+            } else {
+                echo '<div class="notice notice-success is-dismissible"><p>✅ <strong>Autorizzazione completata con successo!</strong> Ora puoi usare il browser Google Drive.</p></div>';
+            }
+        }
+    } elseif (isset($_GET['error'])) {
+        echo '<div class="notice notice-error"><p><strong>Errore OAuth:</strong> ' . esc_html($_GET['error']) . '</p></div>';
+    }
+}
+
+// Revoca autorizzazione
+if (isset($_POST['mep_revoke_auth']) && check_admin_referer('mep_settings_nonce', 'mep_settings_nonce_field')) {
+    MEP_Google_OAuth::revoke_authorization();
+    echo '<div class="notice notice-success is-dismissible"><p>' . __('Autorizzazione revocata!', 'my-event-plugin') . '</p></div>';
+}
+
 // Salva impostazioni
 if (isset($_POST['mep_save_settings']) && check_admin_referer('mep_settings_nonce', 'mep_settings_nonce_field')) {
     update_option('mep_template_post_id', absint($_POST['template_post_id']));
@@ -12,6 +39,14 @@ if (isset($_POST['mep_save_settings']) && check_admin_referer('mep_settings_nonc
     update_option('mep_gallery_responsive', sanitize_text_field($_POST['gallery_responsive']));
     update_option('mep_min_photos', absint($_POST['min_photos']));
     update_option('mep_auto_publish', sanitize_text_field($_POST['auto_publish']));
+    
+    // Salva credenziali OAuth
+    if (isset($_POST['google_client_id'])) {
+        update_option('mep_google_client_id', sanitize_text_field($_POST['google_client_id']));
+    }
+    if (isset($_POST['google_client_secret'])) {
+        update_option('mep_google_client_secret', sanitize_text_field($_POST['google_client_secret']));
+    }
     
     echo '<div class="notice notice-success is-dismissible"><p>' . __('Impostazioni salvate!', 'my-event-plugin') . '</p></div>';
 }
@@ -22,6 +57,13 @@ $auto_featured_image = get_option('mep_auto_featured_image', 'yes');
 $gallery_responsive = get_option('mep_gallery_responsive', 'yes');
 $min_photos = get_option('mep_min_photos', 4);
 $auto_publish = get_option('mep_auto_publish', 'no');
+
+// Carica credenziali OAuth
+$google_client_id = get_option('mep_google_client_id', '');
+$google_client_secret = get_option('mep_google_client_secret', '');
+$is_authorized = MEP_Google_OAuth::is_authorized();
+$auth_url = MEP_Google_OAuth::get_auth_url();
+$token_info = MEP_Google_OAuth::get_token_info();
 ?>
 
 <div class="wrap mep-settings-wrap">
@@ -32,6 +74,145 @@ $auto_publish = get_option('mep_auto_publish', 'no');
     
     <form method="post" action="" class="mep-settings-form">
         <?php wp_nonce_field('mep_settings_nonce', 'mep_settings_nonce_field'); ?>
+        
+        <!-- 🔐 Sezione Google Drive OAuth -->
+        <div class="mep-settings-section" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 25px; border-radius: 10px; margin-bottom: 30px;">
+            <h2 style="color: white; margin-top: 0;">
+                <span class="dashicons dashicons-google" style="font-size: 28px;"></span>
+                <?php _e('🔐 Autorizzazione Google Drive', 'my-event-plugin'); ?>
+            </h2>
+            <p style="opacity: 0.95;">
+                <?php _e('Configura le credenziali OAuth per accedere a Google Drive. Segui la guida sotto per ottenere Client ID e Secret.', 'my-event-plugin'); ?>
+            </p>
+            
+            <table class="form-table" style="background: rgba(255,255,255,0.1); border-radius: 8px; padding: 15px;">
+                <tr>
+                    <th scope="row" style="color: white;">
+                        <label for="google_client_id"><?php _e('Client ID', 'my-event-plugin'); ?></label>
+                    </th>
+                    <td>
+                        <input type="text" 
+                               name="google_client_id" 
+                               id="google_client_id" 
+                               value="<?php echo esc_attr($google_client_id); ?>" 
+                               class="regular-text"
+                               style="font-family: monospace; background: white; border: 2px solid rgba(255,255,255,0.3);"
+                               placeholder="123456789-abc...apps.googleusercontent.com">
+                        <p class="description" style="color: rgba(255,255,255,0.9);">
+                            <?php _e('Ottieni da Google Cloud Console', 'my-event-plugin'); ?>
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row" style="color: white;">
+                        <label for="google_client_secret"><?php _e('Client Secret', 'my-event-plugin'); ?></label>
+                    </th>
+                    <td>
+                        <input type="password" 
+                               name="google_client_secret" 
+                               id="google_client_secret" 
+                               value="<?php echo esc_attr($google_client_secret); ?>" 
+                               class="regular-text"
+                               style="font-family: monospace; background: white; border: 2px solid rgba(255,255,255,0.3);"
+                               placeholder="GOCSPX-...">
+                        <p class="description" style="color: rgba(255,255,255,0.9);">
+                            <?php _e('Mantienilo segreto!', 'my-event-plugin'); ?>
+                        </p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row" style="color: white;">
+                        <?php _e('Redirect URI', 'my-event-plugin'); ?>
+                    </th>
+                    <td>
+                        <code style="background: rgba(0,0,0,0.3); padding: 8px 12px; border-radius: 4px; display: inline-block; color: #38ef7d; font-size: 13px;">
+                            <?php echo esc_html(MEP_Google_OAuth::get_redirect_uri()); ?>
+                        </code>
+                        <p class="description" style="color: rgba(255,255,255,0.9);">
+                            <?php _e('Copia questo URL e incollalo nelle "Authorized redirect URIs" in Google Cloud Console', 'my-event-plugin'); ?>
+                        </p>
+                    </td>
+                </tr>
+            </table>
+            
+            <!-- Stato Autorizzazione -->
+            <div style="background: rgba(255,255,255,0.15); padding: 20px; border-radius: 8px; margin-top: 20px;">
+                <h3 style="margin-top: 0; color: white;">
+                    <?php _e('📊 Stato Autorizzazione', 'my-event-plugin'); ?>
+                </h3>
+                
+                <?php if ($is_authorized): ?>
+                    <div style="background: rgba(56, 239, 125, 0.2); border-left: 4px solid #38ef7d; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+                        <p style="margin: 0; font-weight: 600; color: white;">
+                            ✅ <?php _e('Autorizzato!', 'my-event-plugin'); ?>
+                        </p>
+                        <ul style="margin: 10px 0 0 20px; color: rgba(255,255,255,0.9); font-size: 13px;">
+                            <li><strong>Access Token:</strong> <?php echo $token_info['has_access_token'] ? '✅ Presente' : '❌ Mancante'; ?></li>
+                            <li><strong>Refresh Token:</strong> <?php echo $token_info['has_refresh_token'] ? '✅ Presente' : '❌ Mancante'; ?></li>
+                            <li><strong>Scadenza:</strong> <?php echo esc_html($token_info['expires_at']); ?> 
+                                <?php if ($token_info['is_expired']): ?>
+                                    <span style="color: #ffc107;">(Scaduto, verrà refreshato automaticamente)</span>
+                                <?php endif; ?>
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <button type="submit" 
+                            name="mep_revoke_auth" 
+                            class="button button-secondary"
+                            onclick="return confirm('Sei sicuro di voler revocare l\'autorizzazione?');"
+                            style="background: rgba(214, 48, 49, 0.8); color: white; border: none;">
+                        🗑️ <?php _e('Revoca Autorizzazione', 'my-event-plugin'); ?>
+                    </button>
+                    
+                <?php elseif (!empty($google_client_id) && !empty($google_client_secret)): ?>
+                    <div style="background: rgba(255, 193, 7, 0.2); border-left: 4px solid #ffc107; padding: 15px; border-radius: 4px; margin-bottom: 15px;">
+                        <p style="margin: 0; font-weight: 600; color: white;">
+                            ⚠️ <?php _e('Non ancora autorizzato', 'my-event-plugin'); ?>
+                        </p>
+                        <p style="margin: 10px 0 0 0; color: rgba(255,255,255,0.9);">
+                            <?php _e('Clicca il pulsante sotto per autorizzare l\'accesso a Google Drive', 'my-event-plugin'); ?>
+                        </p>
+                    </div>
+                    
+                    <a href="<?php echo esc_url($auth_url); ?>" 
+                       class="button button-primary button-hero"
+                       style="background: #38ef7d; border-color: #38ef7d; color: #1d2327; font-weight: 600; text-decoration: none; display: inline-block;">
+                        <span class="dashicons dashicons-google" style="margin-top: 4px;"></span>
+                        <?php _e('🔗 Autorizza con Google', 'my-event-plugin'); ?>
+                    </a>
+                    
+                <?php else: ?>
+                    <div style="background: rgba(214, 48, 49, 0.2); border-left: 4px solid #d63638; padding: 15px; border-radius: 4px;">
+                        <p style="margin: 0; font-weight: 600; color: white;">
+                            ❌ <?php _e('Configurazione Richiesta', 'my-event-plugin'); ?>
+                        </p>
+                        <p style="margin: 10px 0 0 0; color: rgba(255,255,255,0.9);">
+                            <?php _e('Inserisci Client ID e Secret sopra, poi clicca "Salva Impostazioni"', 'my-event-plugin'); ?>
+                        </p>
+                    </div>
+                <?php endif; ?>
+            </div>
+            
+            <!-- Guida Setup -->
+            <details style="margin-top: 20px; background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px;">
+                <summary style="cursor: pointer; font-weight: 600; color: white; font-size: 15px; user-select: none;">
+                    📖 Come ottenere le credenziali OAuth (Guida Rapida)
+                </summary>
+                <ol style="margin: 15px 0 0 20px; padding: 0; color: rgba(255,255,255,0.95); line-height: 1.8;">
+                    <li>Vai su <a href="https://console.cloud.google.com" target="_blank" style="color: #38ef7d; font-weight: 600;">Google Cloud Console</a></li>
+                    <li>Crea un nuovo progetto o selezionane uno esistente</li>
+                    <li>Vai in <strong>"APIs & Services" → "Credentials"</strong></li>
+                    <li>Clicca <strong>"Create Credentials" → "OAuth 2.0 Client ID"</strong></li>
+                    <li>Scegli tipo applicazione: <strong>"Web application"</strong></li>
+                    <li>Aggiungi la Redirect URI mostrata sopra nelle <strong>"Authorized redirect URIs"</strong></li>
+                    <li>Clicca <strong>"Create"</strong></li>
+                    <li>Copia Client ID e Client Secret e incollali nei campi sopra</li>
+                    <li>Abilita la <strong>Google Drive API</strong>: vai in "APIs & Services" → "Library" → cerca "Google Drive API" → "Enable"</li>
+                    <li>Torna qui, salva le impostazioni, e clicca <strong>"Autorizza con Google"</strong></li>
+                </ol>
+            </details>
+        </div>
         
         <!-- Sezione Template -->
         <div class="mep-settings-section">
