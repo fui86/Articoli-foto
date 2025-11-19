@@ -61,6 +61,7 @@ class MEP_GDrive_Integration {
     
     /**
      * Ottieni lista foto con thumbnails per la griglia di selezione
+     * 🚀 USA GOOGLE DRIVE API DIRETTA - bypassa Use-your-Drive per evitare errori di cache
      * 
      * @param string $folder_id ID cartella Google Drive
      * @return array|WP_Error Array di foto con info e thumbnail
@@ -70,116 +71,64 @@ class MEP_GDrive_Integration {
             return new WP_Error('empty_folder_id', __('ID cartella vuoto', 'my-event-plugin'));
         }
         
-        // Verifica che Use-your-Drive sia disponibile
-        if (!class_exists('TheLion\UseyourDrive\Client')) {
-            return new WP_Error('uyd_not_available', __('Use-your-Drive Client non disponibile', 'my-event-plugin'));
-        }
+        MEP_Helpers::log_info("📁 Tentativo di accesso alla cartella: {$folder_id} (via Google Drive API diretta)");
         
         try {
-            // Log per debug
-            MEP_Helpers::log_info("Tentativo di accesso alla cartella: {$folder_id}");
+            // 1. Verifica accesso alla cartella
+            $access_check = MEP_Google_Drive_API::verify_folder_access($folder_id);
             
-            // Ottieni il client
-            $client = \TheLion\UseyourDrive\Client::instance();
-            
-            if (!$client) {
-                return new WP_Error('client_error', __('Impossibile ottenere il client Use-your-Drive', 'my-event-plugin'));
+            if (is_wp_error($access_check)) {
+                MEP_Helpers::log_error("❌ Verifica accesso fallita", $access_check->get_error_message());
+                return $access_check;
             }
             
-            // Ottieni la cartella - Wrapped in try/catch per gestire errori di Use-your-Drive
-            // Usiamo Throwable per catturare sia Exception che Error (PHP 7+)
-            $folder = null;
-            try {
-                $folder = $client->get_folder($folder_id);
-            } catch (Throwable $uyd_exception) {
-                MEP_Helpers::log_error("Errore Use-your-Drive get_folder", [
-                    'folder_id' => $folder_id,
-                    'error' => $uyd_exception->getMessage(),
-                    'file' => $uyd_exception->getFile(),
-                    'line' => $uyd_exception->getLine(),
-                    'trace' => $uyd_exception->getTraceAsString()
-                ]);
-                
-                // Messaggio user-friendly basato sul tipo di errore
-                $error_message = 'Use-your-Drive non riesce ad accedere alla cartella.';
-                
-                if (strpos($uyd_exception->getMessage(), 'get_id()') !== false || 
-                    strpos($uyd_exception->getMessage(), 'null') !== false) {
-                    $error_message .= ' L\'account Use-your-Drive non ha i permessi per questa cartella.';
-                } else {
-                    $error_message .= ' Errore: ' . $uyd_exception->getMessage();
-                }
-                
-                return new WP_Error('uyd_access_error', $error_message);
+            // 2. Ottieni lista file via Google Drive API diretta
+            $files = MEP_Google_Drive_API::list_files_in_folder($folder_id, 'image/');
+            
+            if (is_wp_error($files)) {
+                MEP_Helpers::log_error("❌ Errore lista file", $files->get_error_message());
+                return $files;
             }
             
-            if (empty($folder)) {
-                MEP_Helpers::log_error("Cartella {$folder_id} non trovata o vuota");
-                return new WP_Error('folder_not_found', __('Cartella non trovata. Verifica che l\'ID sia corretto e che l\'account abbia accesso.', 'my-event-plugin'));
-            }
-            
-            if (!isset($folder['contents']) || empty($folder['contents'])) {
-                MEP_Helpers::log_error("Cartella {$folder_id} non ha contenuti");
-                return new WP_Error('empty_folder', __('Cartella vuota o non accessibile', 'my-event-plugin'));
-            }
-            
-            $image_mimetypes = [
-                'image/jpeg',
-                'image/jpg',
-                'image/png',
-                'image/gif',
-                'image/webp',
-                'image/bmp'
-            ];
-            
-            $photos = [];
-            
-            foreach ($folder['contents'] as $cached_node) {
-                // Verifica che sia un file (non una cartella)
-                if (!$cached_node->get_entry()->is_file()) {
-                    continue;
-                }
-                
-                $mimetype = $cached_node->get_entry()->get_mimetype();
-                
-                if (in_array($mimetype, $image_mimetypes)) {
-                    $entry = $cached_node->get_entry();
-                    
-                    // Ottieni thumbnail URL
-                    $thumbnail_url = $entry->get_thumbnail_with_size('medium');
-                    if (empty($thumbnail_url)) {
-                        // Fallback: usa l'icona o un placeholder
-                        $thumbnail_url = $entry->get_icon();
-                    }
-                    
-                    $photos[] = [
-                        'id' => $cached_node->get_id(),
-                        'name' => $entry->get_name(),
-                        'thumbnail' => $thumbnail_url,
-                        'size' => $entry->get_size(),
-                        'mimetype' => $mimetype
-                    ];
-                }
-            }
-            
-            MEP_Helpers::log_info("Trovate " . count($photos) . " foto nella cartella {$folder_id}");
-            
-            // Se non ci sono foto
-            if (empty($photos)) {
+            // 3. Se non ci sono foto
+            if (empty($files)) {
                 return new WP_Error('no_photos', __('Nessuna foto trovata nella cartella. Assicurati che la cartella contenga file immagine (JPG, PNG, GIF, WebP).', 'my-event-plugin'));
             }
+            
+            // 4. Trasforma i file in formato compatibile con la UI
+            $photos = [];
+            
+            foreach ($files as $file) {
+                // Ottieni thumbnail URL
+                $thumbnail_url = MEP_Google_Drive_API::get_thumbnail_url($file['id'], 400);
+                
+                // Se non c'è thumbnail, usa l'icona
+                if (empty($thumbnail_url)) {
+                    $thumbnail_url = isset($file['iconLink']) ? $file['iconLink'] : '';
+                }
+                
+                $photos[] = [
+                    'id' => $file['id'],
+                    'name' => $file['name'],
+                    'thumbnail' => $thumbnail_url,
+                    'size' => isset($file['size']) ? $file['size'] : 0,
+                    'mimetype' => isset($file['mimeType']) ? $file['mimeType'] : 'image/jpeg'
+                ];
+            }
+            
+            MEP_Helpers::log_info("✅ Trovate " . count($photos) . " foto nella cartella {$folder_id} (via API diretta)");
             
             return $photos;
             
         } catch (Throwable $e) {
-            MEP_Helpers::log_error("Errore nel recupero foto dalla cartella {$folder_id}", [
+            MEP_Helpers::log_error("❌ Errore nel recupero foto dalla cartella {$folder_id}", [
                 'message' => $e->getMessage(),
                 'file' => $e->getFile(),
                 'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString()
             ]);
             return new WP_Error('api_error', sprintf(
-                __('Errore API Use-your-Drive: %s', 'my-event-plugin'),
+                __('Errore API Google Drive: %s', 'my-event-plugin'),
                 $e->getMessage()
             ));
         }
@@ -187,54 +136,28 @@ class MEP_GDrive_Integration {
     
     /**
      * Importa foto specifiche da Google Drive nella Media Library WordPress
+     * 🚀 USA GOOGLE DRIVE API DIRETTA - bypassa Use-your-Drive
      * 
      * @param array $photo_ids Array di ID foto da importare
+     * @param array $photo_names Array di nomi foto (opzionale)
      * @return array|WP_Error Array di attachment IDs o WP_Error
      */
-    public static function import_specific_photos($photo_ids) {
+    public static function import_specific_photos($photo_ids, $photo_names = []) {
         if (empty($photo_ids) || !is_array($photo_ids)) {
             return new WP_Error('empty_photo_ids', __('Lista foto vuota', 'my-event-plugin'));
         }
         
-        MEP_Helpers::log_info("Inizio import di " . count($photo_ids) . " foto selezionate");
+        MEP_Helpers::log_info("📥 Inizio import di " . count($photo_ids) . " foto selezionate (via API diretta)");
         
-        // Importa ogni foto usando l'API wrapper di Use-your-Drive
-        $attachment_ids = [];
-        $errors = [];
+        // Usa la nuova API diretta per importare
+        $attachment_ids = MEP_Google_Drive_API::import_files($photo_ids, $photo_names);
         
-        foreach ($photo_ids as $index => $image_id) {
-            try {
-                // ⭐ QUESTA È LA MAGIA: una riga = download + import completo!
-                $attachment_id = \TheLion\UseyourDrive\API::import($image_id);
-                
-                if (is_wp_error($attachment_id)) {
-                    $errors[] = $attachment_id->get_error_message();
-                    MEP_Helpers::log_error("Errore import foto {$image_id}", $attachment_id->get_error_message());
-                    continue;
-                }
-                
-                $attachment_ids[] = $attachment_id;
-                MEP_Helpers::log_info("Foto {$image_id} importata con attachment ID {$attachment_id}");
-                
-            } catch (Exception $e) {
-                $errors[] = $e->getMessage();
-                MEP_Helpers::log_error("Eccezione durante import foto {$image_id}", $e->getMessage());
-            }
+        if (is_wp_error($attachment_ids)) {
+            MEP_Helpers::log_error("❌ Errore import foto", $attachment_ids->get_error_message());
+            return $attachment_ids;
         }
         
-        // Verifica risultati
-        if (empty($attachment_ids)) {
-            return new WP_Error(
-                'import_failed',
-                __('Impossibile importare alcuna foto. Errori: ', 'my-event-plugin') . implode(', ', $errors)
-            );
-        }
-        
-        if (!empty($errors)) {
-            MEP_Helpers::log_error("Alcuni errori durante l'import", $errors);
-        }
-        
-        MEP_Helpers::log_info("Import completato: " . count($attachment_ids) . " foto importate");
+        MEP_Helpers::log_info("✅ Import completato: " . count($attachment_ids) . " foto importate (via API diretta)");
         
         return $attachment_ids;
     }

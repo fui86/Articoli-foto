@@ -101,6 +101,7 @@ class My_Event_Plugin {
      */
     private function load_dependencies() {
         require_once MEP_PLUGIN_DIR . 'includes/class-helpers.php';
+        require_once MEP_PLUGIN_DIR . 'includes/class-google-drive-api.php'; // 🚀 Nuova API diretta
         require_once MEP_PLUGIN_DIR . 'includes/class-post-creator.php';
         require_once MEP_PLUGIN_DIR . 'includes/class-gdrive-integration.php';
     }

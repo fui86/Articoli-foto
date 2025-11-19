@@ -1,0 +1,398 @@
+<?php
+/**
+ * Classe Google Drive API - Integrazione diretta con Google Drive API v3
+ * Bypassa Use-your-Drive Client per evitare problemi di cache e permessi
+ */
+
+defined('ABSPATH') || exit;
+
+class MEP_Google_Drive_API {
+    
+    /**
+     * @var string Access token ottenuto da Use-your-Drive
+     */
+    private static $access_token = null;
+    
+    /**
+     * @var string Base URL Google Drive API v3
+     */
+    const API_BASE_URL = 'https://www.googleapis.com/drive/v3';
+    
+    /**
+     * Ottieni access token da Use-your-Drive
+     * 
+     * @return string|WP_Error Token o WP_Error
+     */
+    public static function get_access_token() {
+        // Cache del token per questa richiesta
+        if (self::$access_token !== null) {
+            return self::$access_token;
+        }
+        
+        try {
+            // Verifica che Use-your-Drive sia disponibile
+            if (!class_exists('TheLion\UseyourDrive\Accounts')) {
+                return new WP_Error('uyd_not_available', __('Use-your-Drive non disponibile', 'my-event-plugin'));
+            }
+            
+            // Ottieni il primo account autorizzato
+            $accounts = \TheLion\UseyourDrive\Accounts::instance()->list_accounts();
+            
+            if (empty($accounts)) {
+                return new WP_Error('no_accounts', __('Nessun account Google Drive configurato in Use-your-Drive', 'my-event-plugin'));
+            }
+            
+            // Trova il primo account con token valido
+            foreach ($accounts as $account) {
+                $auth = $account->get_authorization();
+                
+                if ($auth && $auth->has_access_token()) {
+                    $token = $auth->get_access_token();
+                    
+                    if (!empty($token)) {
+                        self::$access_token = $token;
+                        MEP_Helpers::log_info("Token OAuth ottenuto da Use-your-Drive");
+                        return $token;
+                    }
+                }
+            }
+            
+            return new WP_Error('no_valid_token', __('Nessun account ha un token valido. Riautorizza in Use-your-Drive.', 'my-event-plugin'));
+            
+        } catch (Throwable $e) {
+            MEP_Helpers::log_error("Errore ottenimento token", $e->getMessage());
+            return new WP_Error('token_error', $e->getMessage());
+        }
+    }
+    
+    /**
+     * Lista file in una cartella Google Drive
+     * 
+     * @param string $folder_id ID cartella Google Drive
+     * @param string $mime_type_filter Filtro MIME type (es: 'image/')
+     * @return array|WP_Error Array di file o WP_Error
+     */
+    public static function list_files_in_folder($folder_id, $mime_type_filter = 'image/') {
+        if (empty($folder_id)) {
+            return new WP_Error('empty_folder_id', __('ID cartella vuoto', 'my-event-plugin'));
+        }
+        
+        // Ottieni token
+        $token = self::get_access_token();
+        if (is_wp_error($token)) {
+            return $token;
+        }
+        
+        MEP_Helpers::log_info("Lista file nella cartella: {$folder_id}");
+        
+        try {
+            // Query per ottenere solo file immagine nella cartella
+            $query = "'" . $folder_id . "' in parents and trashed=false";
+            
+            if (!empty($mime_type_filter)) {
+                $query .= " and mimeType contains '" . $mime_type_filter . "'";
+            }
+            
+            // Parametri richiesta
+            $params = [
+                'q' => $query,
+                'fields' => 'files(id,name,mimeType,size,thumbnailLink,webContentLink,iconLink)',
+                'pageSize' => 1000, // Max 1000 file
+                'orderBy' => 'name'
+            ];
+            
+            // URL richiesta
+            $url = self::API_BASE_URL . '/files?' . http_build_query($params);
+            
+            // Fai richiesta HTTP
+            $response = wp_remote_get($url, [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $token,
+                    'Accept' => 'application/json'
+                ],
+                'timeout' => 30
+            ]);
+            
+            // Verifica risposta
+            if (is_wp_error($response)) {
+                MEP_Helpers::log_error("Errore HTTP Google Drive API", $response->get_error_message());
+                return new WP_Error('http_error', $response->get_error_message());
+            }
+            
+            $status_code = wp_remote_retrieve_response_code($response);
+            $body = wp_remote_retrieve_body($response);
+            
+            if ($status_code !== 200) {
+                MEP_Helpers::log_error("Google Drive API errore {$status_code}", $body);
+                return new WP_Error('api_error', sprintf(
+                    __('Google Drive API errore %d: %s', 'my-event-plugin'),
+                    $status_code,
+                    $body
+                ));
+            }
+            
+            // Parse JSON
+            $data = json_decode($body, true);
+            
+            if (!isset($data['files'])) {
+                MEP_Helpers::log_error("Risposta API invalida", $data);
+                return new WP_Error('invalid_response', __('Risposta API non valida', 'my-event-plugin'));
+            }
+            
+            $files = $data['files'];
+            
+            MEP_Helpers::log_info("Trovati " . count($files) . " file nella cartella");
+            
+            return $files;
+            
+        } catch (Throwable $e) {
+            MEP_Helpers::log_error("Eccezione list_files_in_folder", [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return new WP_Error('exception', $e->getMessage());
+        }
+    }
+    
+    /**
+     * Ottieni URL thumbnail per un file
+     * 
+     * @param string $file_id ID file Google Drive
+     * @param int $size Dimensione thumbnail (default 400)
+     * @return string|false URL thumbnail o false
+     */
+    public static function get_thumbnail_url($file_id, $size = 400) {
+        if (empty($file_id)) {
+            return false;
+        }
+        
+        $token = self::get_access_token();
+        if (is_wp_error($token)) {
+            return false;
+        }
+        
+        // Google Drive genera thumbnail automaticamente per immagini
+        // Usa il formato: https://drive.google.com/thumbnail?id=FILE_ID&sz=w400
+        $thumbnail_url = "https://drive.google.com/thumbnail?id={$file_id}&sz=w{$size}";
+        
+        return $thumbnail_url;
+    }
+    
+    /**
+     * Scarica un file da Google Drive e importalo in WordPress Media Library
+     * 
+     * @param string $file_id ID file Google Drive
+     * @param string $file_name Nome file
+     * @return int|WP_Error Attachment ID o WP_Error
+     */
+    public static function download_and_import_file($file_id, $file_name) {
+        if (empty($file_id)) {
+            return new WP_Error('empty_file_id', __('ID file vuoto', 'my-event-plugin'));
+        }
+        
+        $token = self::get_access_token();
+        if (is_wp_error($token)) {
+            return $token;
+        }
+        
+        MEP_Helpers::log_info("Download file: {$file_name} ({$file_id})");
+        
+        try {
+            // URL per scaricare il file
+            $url = self::API_BASE_URL . '/files/' . $file_id . '?alt=media';
+            
+            // Scarica il file
+            $response = wp_remote_get($url, [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $token
+                ],
+                'timeout' => 60 // Timeout più lungo per file grandi
+            ]);
+            
+            if (is_wp_error($response)) {
+                return $response;
+            }
+            
+            $status_code = wp_remote_retrieve_response_code($response);
+            
+            if ($status_code !== 200) {
+                $body = wp_remote_retrieve_body($response);
+                MEP_Helpers::log_error("Errore download file", [
+                    'status' => $status_code,
+                    'body' => $body
+                ]);
+                return new WP_Error('download_failed', sprintf(
+                    __('Download fallito: %d', 'my-event-plugin'),
+                    $status_code
+                ));
+            }
+            
+            // Ottieni il contenuto del file
+            $file_content = wp_remote_retrieve_body($response);
+            
+            if (empty($file_content)) {
+                return new WP_Error('empty_file', __('File vuoto', 'my-event-plugin'));
+            }
+            
+            // Importa in WordPress Media Library
+            $upload_dir = wp_upload_dir();
+            $file_path = $upload_dir['path'] . '/' . sanitize_file_name($file_name);
+            
+            // Salva file temporaneo
+            $saved = file_put_contents($file_path, $file_content);
+            
+            if ($saved === false) {
+                return new WP_Error('save_failed', __('Impossibile salvare il file', 'my-event-plugin'));
+            }
+            
+            // Crea attachment in WordPress
+            $file_type = wp_check_filetype($file_name);
+            
+            $attachment = [
+                'post_mime_type' => $file_type['type'],
+                'post_title' => sanitize_file_name(pathinfo($file_name, PATHINFO_FILENAME)),
+                'post_content' => '',
+                'post_status' => 'inherit'
+            ];
+            
+            $attachment_id = wp_insert_attachment($attachment, $file_path);
+            
+            if (is_wp_error($attachment_id)) {
+                @unlink($file_path); // Rimuovi file temporaneo
+                return $attachment_id;
+            }
+            
+            // Genera metadata
+            require_once(ABSPATH . 'wp-admin/includes/image.php');
+            $attach_data = wp_generate_attachment_metadata($attachment_id, $file_path);
+            wp_update_attachment_metadata($attachment_id, $attach_data);
+            
+            // Aggiungi metadata custom
+            update_post_meta($attachment_id, '_imported_from_gdrive', true);
+            update_post_meta($attachment_id, '_gdrive_file_id', $file_id);
+            update_post_meta($attachment_id, '_import_date', current_time('mysql'));
+            
+            MEP_Helpers::log_info("File importato con attachment ID: {$attachment_id}");
+            
+            return $attachment_id;
+            
+        } catch (Throwable $e) {
+            MEP_Helpers::log_error("Eccezione download_and_import_file", [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return new WP_Error('exception', $e->getMessage());
+        }
+    }
+    
+    /**
+     * Importa file specifici da Google Drive
+     * 
+     * @param array $file_ids Array di file IDs
+     * @param array $file_names Array di nomi file (stesso ordine)
+     * @return array|WP_Error Array di attachment IDs o WP_Error
+     */
+    public static function import_files($file_ids, $file_names) {
+        if (empty($file_ids) || !is_array($file_ids)) {
+            return new WP_Error('empty_files', __('Nessun file da importare', 'my-event-plugin'));
+        }
+        
+        MEP_Helpers::log_info("Inizio import di " . count($file_ids) . " file da Google Drive");
+        
+        $attachment_ids = [];
+        $errors = [];
+        
+        foreach ($file_ids as $index => $file_id) {
+            $file_name = isset($file_names[$index]) ? $file_names[$index] : "file-{$index}.jpg";
+            
+            $attachment_id = self::download_and_import_file($file_id, $file_name);
+            
+            if (is_wp_error($attachment_id)) {
+                $errors[] = $file_name . ': ' . $attachment_id->get_error_message();
+                MEP_Helpers::log_error("Errore import file {$file_name}", $attachment_id->get_error_message());
+                continue;
+            }
+            
+            $attachment_ids[] = $attachment_id;
+        }
+        
+        // Verifica risultati
+        if (empty($attachment_ids)) {
+            return new WP_Error(
+                'import_failed',
+                __('Impossibile importare alcun file. Errori: ', 'my-event-plugin') . implode(', ', $errors)
+            );
+        }
+        
+        if (!empty($errors)) {
+            MEP_Helpers::log_error("Alcuni errori durante l'import", $errors);
+        }
+        
+        MEP_Helpers::log_info("Import completato: " . count($attachment_ids) . " file importati");
+        
+        return $attachment_ids;
+    }
+    
+    /**
+     * Verifica che un folder ID sia accessibile
+     * 
+     * @param string $folder_id
+     * @return bool|WP_Error True se accessibile, WP_Error se no
+     */
+    public static function verify_folder_access($folder_id) {
+        if (empty($folder_id)) {
+            return new WP_Error('empty_folder_id', __('ID cartella vuoto', 'my-event-plugin'));
+        }
+        
+        $token = self::get_access_token();
+        if (is_wp_error($token)) {
+            return $token;
+        }
+        
+        try {
+            // Verifica che la cartella esista e sia accessibile
+            $url = self::API_BASE_URL . '/files/' . $folder_id . '?fields=id,name,mimeType';
+            
+            $response = wp_remote_get($url, [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $token,
+                    'Accept' => 'application/json'
+                ],
+                'timeout' => 15
+            ]);
+            
+            if (is_wp_error($response)) {
+                return $response;
+            }
+            
+            $status_code = wp_remote_retrieve_response_code($response);
+            
+            if ($status_code === 404) {
+                return new WP_Error('folder_not_found', __('Cartella non trovata', 'my-event-plugin'));
+            }
+            
+            if ($status_code === 403) {
+                return new WP_Error('access_denied', __('Accesso negato alla cartella', 'my-event-plugin'));
+            }
+            
+            if ($status_code !== 200) {
+                return new WP_Error('api_error', sprintf(__('Errore API: %d', 'my-event-plugin'), $status_code));
+            }
+            
+            $data = json_decode(wp_remote_retrieve_body($response), true);
+            
+            // Verifica che sia una cartella
+            if (isset($data['mimeType']) && $data['mimeType'] !== 'application/vnd.google-apps.folder') {
+                return new WP_Error('not_folder', __('L\'ID fornito non è una cartella', 'my-event-plugin'));
+            }
+            
+            MEP_Helpers::log_info("Cartella {$folder_id} accessibile: " . ($data['name'] ?? 'N/A'));
+            
+            return true;
+            
+        } catch (Throwable $e) {
+            MEP_Helpers::log_error("Eccezione verify_folder_access", $e->getMessage());
+            return new WP_Error('exception', $e->getMessage());
+        }
+    }
+}
