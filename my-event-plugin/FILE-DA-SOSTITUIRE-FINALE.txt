@@ -1,0 +1,88 @@
+📦 LISTA COMPLETA FILE DA SOSTITUIRE - My Event Plugin v1.2.0
+================================================================
+
+✅ FILE DA AGGIUNGERE (3 nuovi file):
+-----------------------------------
+1. includes/class-google-oauth.php
+2. GUIDA-OAUTH-SETUP.md
+3. FILE-MODIFICATI.md
+
+
+✅ FILE DA SOSTITUIRE (5 file modificati):
+-----------------------------------------
+1. my-event-plugin.php
+2. includes/class-google-drive-api.php
+3. templates/settings-page.php
+4. templates/admin-page.php          ← APPENA RICREATO (100% nuovo, zero Use-your-Drive)
+5. assets/js/admin-script.js
+
+
+📍 PERCORSI COMPLETI:
+--------------------
+wp-content/plugins/my-event-plugin/
+├── my-event-plugin.php                    ← SOSTITUISCI
+├── GUIDA-OAUTH-SETUP.md                   ← AGGIUNGI
+├── FILE-MODIFICATI.md                     ← AGGIUNGI
+├── includes/
+│   ├── class-google-oauth.php            ← AGGIUNGI (NUOVO)
+│   └── class-google-drive-api.php        ← SOSTITUISCI
+├── templates/
+│   ├── admin-page.php                    ← SOSTITUISCI (100% NUOVO)
+│   └── settings-page.php                  ← SOSTITUISCI
+└── assets/
+    └── js/
+        └── admin-script.js                ← SOSTITUISCI
+
+
+🚨 IMPORTANTE DOPO UPLOAD:
+--------------------------
+1. Disattiva plugin: WordPress Admin → Plugin → Disattiva "Gestore Eventi Automatico"
+2. Riattiva plugin: Attiva "Gestore Eventi Automatico"
+3. Svuota cache browser: Ctrl+Shift+R (o Cmd+Shift+R su Mac)
+4. Svuota cache WordPress (se hai plugin cache tipo WP Super Cache, W3 Total Cache, ecc.)
+
+
+✅ VERIFICA FUNZIONAMENTO:
+-------------------------
+1. Vai su: WordPress Admin → Gestione Eventi → Impostazioni
+   - Verifica che vedi la sezione "🔐 Autorizzazione Google Drive"
+   - Verifica che dice "✅ Autorizzato!"
+
+2. Vai su: WordPress Admin → Gestione Eventi → Crea Nuovo Evento
+   - Dovresti vedere il browser Google Drive
+   - Dovresti vedere le tue cartelle caricate
+   - ZERO riferimenti a "Use-your-Drive"
+
+
+🎯 COSA CAMBIA NELLA NUOVA admin-page.php:
+-----------------------------------------
+✅ Rimosso completamente Use-your-Drive shortcode
+✅ Rimossi tutti i riferimenti a Use-your-Drive
+✅ Browser Google Drive 100% custom e integrato
+✅ Navigazione cartelle pulita e veloce
+✅ Selezione foto con miniature
+✅ UI moderna e responsive
+✅ Messaggi di errore chiari
+
+
+📞 SE QUALCOSA NON FUNZIONA:
+---------------------------
+1. Apri Console Browser (F12) → Cerca errori in rosso
+2. Controlla wp-content/debug.log sul server
+3. Verifica che TUTTI i 5 file siano stati sostituiti
+4. Prova a disattivare/riattivare il plugin
+5. Svuota tutte le cache (browser + WordPress)
+
+
+🚀 RISULTATO FINALE:
+-------------------
+Browser Google Drive integrato → Naviga cartelle → Seleziona cartella → 
+Vedi miniature foto → Seleziona 4 foto → Scegli copertina → 
+Compila dettagli evento → Crea Evento → FATTO!
+
+Zero dipendenze da Use-your-Drive per il browser!
+(Use-your-Drive servirà solo per la galleria finale nell'articolo)
+
+
+Data: 19 Novembre 2025
+Versione: 1.2.0
