@@ -169,61 +169,47 @@ $uyd_check = MEP_Helpers::check_useyourdrive_ready();
                     <div style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white; padding: 25px; border-radius: 10px; margin-bottom: 25px; box-shadow: 0 4px 15px rgba(17, 153, 142, 0.2);">
                         <h2 style="margin: 0 0 12px 0; color: white; display: flex; align-items: center; gap: 12px; font-size: 22px;">
                             <span class="dashicons dashicons-cloud" style="font-size: 32px; width: 32px; height: 32px;"></span>
-                            <?php _e('📁 Passo 1: Seleziona la Cartella Google Drive', 'my-event-plugin'); ?>
+                            <?php _e('📁 Passo 1: Naviga nel tuo Google Drive', 'my-event-plugin'); ?>
                         </h2>
                         <p style="margin: 0; opacity: 0.95; line-height: 1.7; font-size: 15px;">
-                            <?php _e('Incolla l\'ID della cartella Google Drive che contiene le foto dell\'evento.', 'my-event-plugin'); ?><br>
-                            <?php _e('✨ Il plugin caricherà automaticamente tutte le foto disponibili per la selezione!', 'my-event-plugin'); ?>
+                            <?php _e('Naviga nelle cartelle del tuo Google Drive e seleziona quella che contiene le foto dell\'evento.', 'my-event-plugin'); ?><br>
+                            <?php _e('✨ Clicca su una cartella per aprirla, oppure clicca "Seleziona questa cartella" per caricare le foto!', 'my-event-plugin'); ?>
                         </p>
                     </div>
                     
                     <div class="mep-form-row">
                         
-                        <!-- Input ID Cartella Google Drive -->
-                        <div style="margin-bottom: 20px; padding: 20px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);">
-                            <label style="display: flex; align-items: center; gap: 10px; font-weight: 600; margin-bottom: 15px; color: white; font-size: 16px;">
-                                <span class="dashicons dashicons-admin-links" style="font-size: 24px; width: 24px; height: 24px;"></span>
-                                <?php _e('🔗 ID della Cartella Google Drive', 'my-event-plugin'); ?>
-                            </label>
-                            <div style="display: flex; gap: 12px; align-items: flex-start;">
-                                <input type="text" 
-                                       id="mep-manual-folder-id" 
-                                       placeholder="<?php esc_attr_e('Incolla qui l\'ID: 1a2b3c4d5e6f7g8h9i0j', 'my-event-plugin'); ?>"
-                                       style="flex: 1; padding: 12px 16px; border: 3px solid rgba(255,255,255,0.3); border-radius: 8px; font-family: monospace; font-size: 14px; background: white;">
+                        <!-- Browser Google Drive -->
+                        <div id="mep-gdrive-browser" style="background: white; border: 2px solid #ddd; border-radius: 8px; padding: 20px; margin-bottom: 20px;">
+                            <!-- Breadcrumb -->
+                            <div id="mep-gdrive-breadcrumb" style="padding: 10px; background: #f6f7f7; border-radius: 6px; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                                <span class="dashicons dashicons-admin-home" style="color: #2271b1;"></span>
+                                <span style="color: #646970;">My Drive</span>
+                            </div>
+                            
+                            <!-- Lista Cartelle -->
+                            <div id="mep-gdrive-folders-list" style="min-height: 200px;">
+                                <div style="text-align: center; padding: 40px; color: #646970;">
+                                    <span class="mep-spinner"></span>
+                                    <p><?php _e('Caricamento cartelle...', 'my-event-plugin'); ?></p>
+                                </div>
+                            </div>
+                            
+                            <!-- Pulsante Seleziona Cartella Corrente -->
+                            <div id="mep-current-folder-actions" style="margin-top: 15px; padding-top: 15px; border-top: 2px solid #e0e0e0; display: none;">
                                 <button type="button" 
-                                        id="mep-load-manual-folder" 
-                                        class="button button-primary button-hero"
-                                        style="background: #38ef7d; border-color: #38ef7d; color: #1d2327; font-weight: 600; box-shadow: 0 2px 8px rgba(56, 239, 125, 0.4); padding: 12px 30px; height: auto;">
-                                    <span class="dashicons dashicons-download" style="margin-top: 4px;"></span>
-                                    <?php _e('Carica Foto', 'my-event-plugin'); ?>
+                                        id="mep-select-current-folder" 
+                                        class="button button-primary button-large"
+                                        style="width: 100%; background: #38ef7d; border-color: #38ef7d; color: #1d2327; font-weight: 600; padding: 15px; font-size: 16px;">
+                                    <span class="dashicons dashicons-yes" style="margin-top: 4px;"></span>
+                                    <?php _e('✓ Seleziona Questa Cartella e Carica Foto', 'my-event-plugin'); ?>
                                 </button>
                             </div>
-                            <details style="margin-top: 15px; background: rgba(255,255,255,0.15); padding: 12px; border-radius: 6px;">
-                                <summary style="cursor: pointer; color: white; font-size: 13px; font-weight: 600; user-select: none;">
-                                    ❓ Come ottenere l'ID della cartella?
-                                </summary>
-                                <ol style="margin: 12px 0 0 0; padding-left: 20px; font-size: 13px; color: rgba(255,255,255,0.95); line-height: 1.8;">
-                                    <li>Apri <a href="https://drive.google.com" target="_blank" style="color: #38ef7d; font-weight: 600; text-decoration: underline;">Google Drive</a> nel browser</li>
-                                    <li>Naviga nella cartella con le foto dell'evento</li>
-                                    <li>Guarda l'URL nella barra degli indirizzi:<br>
-                                        <code style="background: rgba(0,0,0,0.3); padding: 4px 8px; border-radius: 4px; display: inline-block; margin-top: 5px; font-size: 11px;">
-                                            drive.google.com/drive/folders/<strong style="color: #38ef7d;">1a2b3c4d5e6f7g8h9i0j</strong>
-                                        </code>
-                                    </li>
-                                    <li>Copia la parte finale dell'URL (dopo <code style="background: rgba(0,0,0,0.2); padding: 2px 4px;">/folders/</code>)</li>
-                                    <li>Incollala nel campo sopra e clicca <strong>"Carica Foto"</strong></li>
-                                </ol>
-                                <div style="margin-top: 12px; padding: 10px; background: rgba(255, 193, 7, 0.2); border-left: 3px solid #ffc107; border-radius: 4px;">
-                                    <p style="margin: 0; font-size: 12px; color: rgba(255,255,255,0.95);">
-                                        <strong>💡 Suggerimento:</strong> Assicurati che l'account Use-your-Drive abbia accesso alla cartella, altrimenti vedrai un errore di permessi.
-                                    </p>
-                                </div>
-                            </details>
                         </div>
                         
                         <div id="mep-folder-validation-message" class="mep-validation-message" style="display:none;"></div>
                         
-                        <!-- Campi nascosti popolati dal selector -->
+                        <!-- Campi nascosti popolati dal browser -->
                         <input type="hidden" name="event_folder_id" id="event_folder_id">
                         <input type="hidden" name="event_folder_account" id="event_folder_account">
                         <input type="hidden" name="event_folder_name" id="event_folder_name">

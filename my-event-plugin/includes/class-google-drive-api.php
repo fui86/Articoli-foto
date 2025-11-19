@@ -66,6 +66,106 @@ class MEP_Google_Drive_API {
     }
     
     /**
+     * Lista cartelle e file in una cartella Google Drive (per browser navigabile)
+     * 
+     * @param string $folder_id ID cartella Google Drive (usa 'root' per cartella principale)
+     * @param bool $include_files Se includere anche i file (default true)
+     * @param string $mime_type_filter Filtro MIME per file (default 'image/')
+     * @return array|WP_Error Array con 'folders' e 'files' o WP_Error
+     */
+    public static function list_folders_and_files($folder_id = 'root', $include_files = true, $mime_type_filter = 'image/') {
+        if (empty($folder_id)) {
+            $folder_id = 'root';
+        }
+        
+        $token = self::get_access_token();
+        if (is_wp_error($token)) {
+            return $token;
+        }
+        
+        MEP_Helpers::log_info("📂 Lista cartelle/file nella cartella: {$folder_id}");
+        
+        try {
+            $result = [
+                'folders' => [],
+                'files' => [],
+                'folder_id' => $folder_id
+            ];
+            
+            // 1. Lista CARTELLE
+            $folders_query = "'" . $folder_id . "' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false";
+            
+            $folders_params = [
+                'q' => $folders_query,
+                'fields' => 'files(id,name,mimeType,modifiedTime,iconLink)',
+                'pageSize' => 1000,
+                'orderBy' => 'name'
+            ];
+            
+            $folders_url = self::API_BASE_URL . '/files?' . http_build_query($folders_params);
+            
+            $folders_response = wp_remote_get($folders_url, [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $token,
+                    'Accept' => 'application/json'
+                ],
+                'timeout' => 30
+            ]);
+            
+            if (!is_wp_error($folders_response) && wp_remote_retrieve_response_code($folders_response) === 200) {
+                $folders_data = json_decode(wp_remote_retrieve_body($folders_response), true);
+                if (isset($folders_data['files'])) {
+                    $result['folders'] = $folders_data['files'];
+                }
+            }
+            
+            // 2. Lista FILE (solo se richiesto)
+            if ($include_files) {
+                $files_query = "'" . $folder_id . "' in parents and trashed=false";
+                
+                if (!empty($mime_type_filter)) {
+                    $files_query .= " and mimeType contains '" . $mime_type_filter . "'";
+                }
+                
+                $files_params = [
+                    'q' => $files_query,
+                    'fields' => 'files(id,name,mimeType,size,thumbnailLink,webContentLink,iconLink,modifiedTime)',
+                    'pageSize' => 1000,
+                    'orderBy' => 'name'
+                ];
+                
+                $files_url = self::API_BASE_URL . '/files?' . http_build_query($files_params);
+                
+                $files_response = wp_remote_get($files_url, [
+                    'headers' => [
+                        'Authorization' => 'Bearer ' . $token,
+                        'Accept' => 'application/json'
+                    ],
+                    'timeout' => 30
+                ]);
+                
+                if (!is_wp_error($files_response) && wp_remote_retrieve_response_code($files_response) === 200) {
+                    $files_data = json_decode(wp_remote_retrieve_body($files_response), true);
+                    if (isset($files_data['files'])) {
+                        $result['files'] = $files_data['files'];
+                    }
+                }
+            }
+            
+            MEP_Helpers::log_info("✅ Trovate " . count($result['folders']) . " cartelle e " . count($result['files']) . " file");
+            
+            return $result;
+            
+        } catch (Throwable $e) {
+            MEP_Helpers::log_error("Eccezione list_folders_and_files", [
+                'message' => $e->getMessage(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return new WP_Error('exception', $e->getMessage());
+        }
+    }
+    
+    /**
      * Lista file in una cartella Google Drive
      * 
      * @param string $folder_id ID cartella Google Drive
@@ -331,6 +431,53 @@ class MEP_Google_Drive_API {
         MEP_Helpers::log_info("Import completato: " . count($attachment_ids) . " file importati");
         
         return $attachment_ids;
+    }
+    
+    /**
+     * Ottieni informazioni dettagliate su una cartella (per breadcrumb)
+     * 
+     * @param string $folder_id ID cartella
+     * @return array|WP_Error Info cartella {id, name, parents}
+     */
+    public static function get_folder_info($folder_id) {
+        if (empty($folder_id)) {
+            return new WP_Error('empty_folder_id', __('ID cartella vuoto', 'my-event-plugin'));
+        }
+        
+        $token = self::get_access_token();
+        if (is_wp_error($token)) {
+            return $token;
+        }
+        
+        try {
+            $url = self::API_BASE_URL . '/files/' . $folder_id . '?fields=id,name,mimeType,parents';
+            
+            $response = wp_remote_get($url, [
+                'headers' => [
+                    'Authorization' => 'Bearer ' . $token,
+                    'Accept' => 'application/json'
+                ],
+                'timeout' => 15
+            ]);
+            
+            if (is_wp_error($response)) {
+                return $response;
+            }
+            
+            $status_code = wp_remote_retrieve_response_code($response);
+            
+            if ($status_code !== 200) {
+                return new WP_Error('api_error', sprintf(__('Errore API: %d', 'my-event-plugin'), $status_code));
+            }
+            
+            $data = json_decode(wp_remote_retrieve_body($response), true);
+            
+            return $data;
+            
+        } catch (Throwable $e) {
+            MEP_Helpers::log_error("Eccezione get_folder_info", $e->getMessage());
+            return new WP_Error('exception', $e->getMessage());
+        }
     }
     
     /**

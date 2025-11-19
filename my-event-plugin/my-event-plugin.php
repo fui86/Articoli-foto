@@ -70,6 +70,7 @@ class My_Event_Plugin {
         add_action('wp_ajax_mep_validate_folder', [$this, 'handle_folder_validation']);
         add_action('wp_ajax_mep_get_folder_photos', [$this, 'handle_get_folder_photos']);
         add_action('wp_ajax_mep_get_template_preview', [$this, 'handle_get_template_preview']);
+        add_action('wp_ajax_mep_browse_gdrive_folder', [$this, 'handle_browse_gdrive_folder']); // 🚀 Nuovo browser
         
         // Shortcode per frontend (opzionale)
         add_shortcode('my_event_form', [$this, 'render_frontend_form']);

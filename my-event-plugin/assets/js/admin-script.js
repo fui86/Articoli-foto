@@ -68,6 +68,168 @@
             }
         }
         
+        // ===== 🚀 Google Drive Browser =====
+        const GDriveBrowser = {
+            currentFolderId: 'root',
+            folderHistory: [],
+            
+            init: function() {
+                console.log('🚀 Inizializzo Google Drive Browser');
+                this.loadFolder('root');
+                this.bindEvents();
+            },
+            
+            bindEvents: function() {
+                // Click su "Seleziona Questa Cartella"
+                $(document).on('click', '#mep-select-current-folder', () => {
+                    this.selectCurrentFolder();
+                });
+                
+                // Click su una cartella (naviga dentro)
+                $(document).on('click', '.mep-gdrive-folder-item', (e) => {
+                    const folderId = $(e.currentTarget).data('folder-id');
+                    const folderName = $(e.currentTarget).data('folder-name');
+                    console.log('📂 Click cartella:', folderName, folderId);
+                    this.loadFolder(folderId);
+                });
+                
+                // Click su breadcrumb
+                $(document).on('click', '.mep-breadcrumb-item', (e) => {
+                    const folderId = $(e.currentTarget).data('folder-id');
+                    this.loadFolder(folderId);
+                });
+            },
+            
+            loadFolder: function(folderId) {
+                console.log('📥 Caricamento cartella:', folderId);
+                
+                this.currentFolderId = folderId;
+                
+                // Mostra loading
+                $('#mep-gdrive-folders-list').html(`
+                    <div style="text-align: center; padding: 40px; color: #646970;">
+                        <span class="mep-spinner"></span>
+                        <p>Caricamento cartelle...</p>
+                    </div>
+                `);
+                
+                $('#mep-current-folder-actions').hide();
+                
+                // Richiesta AJAX
+                $.ajax({
+                    url: mepData.ajax_url,
+                    type: 'POST',
+                    data: {
+                        action: 'mep_browse_gdrive_folder',
+                        nonce: mepData.nonce,
+                        folder_id: folderId
+                    },
+                    success: (response) => {
+                        if (response.success) {
+                            this.renderFolders(response.data);
+                            this.updateBreadcrumb(response.data);
+                            $('#mep-current-folder-actions').show();
+                            console.log('✅ Cartelle caricate:', response.data.total_folders);
+                        } else {
+                            this.showError(response.data.message);
+                        }
+                    },
+                    error: (xhr, status, error) => {
+                        console.error('❌ Errore AJAX:', error);
+                        this.showError('Errore di connessione: ' + error);
+                    }
+                });
+            },
+            
+            renderFolders: function(data) {
+                const folders = data.folders || [];
+                const $list = $('#mep-gdrive-folders-list');
+                
+                if (folders.length === 0) {
+                    $list.html(`
+                        <div style="text-align: center; padding: 40px; color: #646970;">
+                            <span class="dashicons dashicons-portfolio" style="font-size: 48px; opacity: 0.3;"></span>
+                            <p>Nessuna sottocartella trovata.</p>
+                            <p style="font-size: 13px;">Clicca "Seleziona Questa Cartella" per caricare le foto da qui.</p>
+                        </div>
+                    `);
+                    return;
+                }
+                
+                let html = '<div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px;">';
+                
+                folders.forEach(folder => {
+                    html += `
+                        <div class="mep-gdrive-folder-item" 
+                             data-folder-id="${folder.id}" 
+                             data-folder-name="${folder.name}"
+                             style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+                                    padding: 20px; 
+                                    border-radius: 8px; 
+                                    cursor: pointer; 
+                                    transition: all 0.3s ease;
+                                    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+                                    display: flex;
+                                    flex-direction: column;
+                                    align-items: center;
+                                    text-align: center;
+                                    color: white;">
+                            <span class="dashicons dashicons-category" style="font-size: 48px; margin-bottom: 10px; opacity: 0.9;"></span>
+                            <span style="font-weight: 600; font-size: 14px; line-height: 1.4; word-break: break-word;">${folder.name}</span>
+                        </div>
+                    `;
+                });
+                
+                html += '</div>';
+                $list.html(html);
+                
+                // Hover effect
+                $('.mep-gdrive-folder-item').hover(
+                    function() {
+                        $(this).css({'transform': 'translateY(-5px) scale(1.05)', 'box-shadow': '0 8px 20px rgba(102, 126, 234, 0.4)'});
+                    },
+                    function() {
+                        $(this).css({'transform': 'translateY(0) scale(1)', 'box-shadow': '0 2px 8px rgba(0,0,0,0.1)'});
+                    }
+                );
+            },
+            
+            updateBreadcrumb: function(data) {
+                const $breadcrumb = $('#mep-gdrive-breadcrumb');
+                let html = `
+                    <span class="dashicons dashicons-admin-home" style="color: #2271b1;"></span>
+                    <span class="mep-breadcrumb-item" data-folder-id="root" style="color: #2271b1; cursor: pointer; text-decoration: underline;">My Drive</span>
+                `;
+                
+                if (data.folder_info && data.folder_info.name) {
+                    html += ` <span style="color: #646970;">›</span> <span style="color: #1d2327; font-weight: 600;">${data.folder_info.name}</span>`;
+                }
+                
+                $breadcrumb.html(html);
+            },
+            
+            selectCurrentFolder: function() {
+                console.log('✅ Cartella selezionata:', this.currentFolderId);
+                
+                // Popola campi hidden
+                $('#event_folder_id').val(this.currentFolderId);
+                
+                // Carica le foto
+                loadFolderPhotos(this.currentFolderId);
+            },
+            
+            showError: function(message) {
+                $('#mep-gdrive-folders-list').html(`
+                    <div style="padding: 20px; background: #f8d7da; border: 2px solid #d63638; border-radius: 8px; color: #721c24;">
+                        <p style="margin: 0;"><strong>❌ Errore:</strong> ${message}</p>
+                    </div>
+                `);
+            }
+        };
+        
+        // Inizializza il browser
+        GDriveBrowser.init();
+        
         // ===== Photo Selection State =====
         const PhotoSelector = {
             selectedPhotos: [], // Array di oggetti {id, name, thumbnail}
