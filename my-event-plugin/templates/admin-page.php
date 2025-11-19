@@ -274,9 +274,8 @@ $uyd_check = MEP_Helpers::check_useyourdrive_ready();
                                         echo 'Verifica che Use-your-Drive sia installato e attivo.';
                                         echo '</div>';
                                     } else {
-                                        // Shortcode che mostra SOLO le cartelle (non i file)
-                                        // I file verranno mostrati nella griglia sotto quando selezioni la cartella
-                                        $shortcode = '[useyourdrive mode="files" viewrole="administrator" candownloadzip="0" showsharelink="0" showfiles="0" showfolders="1" maxheight="400px" showbreadcrumb="1" lightbox="0"]';
+                                        // Shortcode che mostra sia cartelle che file
+                                        $shortcode = '[useyourdrive mode="files" viewrole="administrator" candownloadzip="0" showsharelink="0" showfiles="1" showfolders="1" include_ext="jpg,jpeg,png,gif,webp" maxheight="400px" showbreadcrumb="1" lightbox="0"]';
                                         
                                         // Debug: mostra lo shortcode generato
                                         if (defined('WP_DEBUG') && WP_DEBUG) {
