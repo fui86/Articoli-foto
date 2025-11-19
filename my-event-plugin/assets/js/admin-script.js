@@ -296,7 +296,7 @@
         // ===== Photo Selection State =====
         const PhotoSelector = {
             selectedPhotos: [], // Array di oggetti {id, name, thumbnail}
-            maxPhotos: 4,
+            maxPhotos: 20, // Aumentato a 20 (o rimuovi il limite)
             
             reset: function() {
                 this.selectedPhotos = [];
@@ -304,8 +304,8 @@
             },
             
             addPhoto: function(photo) {
-                if (this.selectedPhotos.length >= this.maxPhotos) {
-                    alert('Puoi selezionare massimo ' + this.maxPhotos + ' foto!');
+                if (this.maxPhotos && this.selectedPhotos.length >= this.maxPhotos) {
+                    alert('Hai raggiunto il limite massimo di ' + this.maxPhotos + ' foto!');
                     return false;
                 }
                 
@@ -332,7 +332,7 @@
                 const count = this.selectedPhotos.length;
                 
                 // Aggiorna counter
-                $('.mep-selection-count strong').text(count + '/' + this.maxPhotos);
+                $('.mep-selection-count strong').text(count);
                 
                 // Aggiorna campo hidden con gli ID
                 const photoIds = this.selectedPhotos.map(p => p.id).join(',');
@@ -340,26 +340,28 @@
                 
                 // Cambia stile del contatore in base al progresso
                 const $counter = $('.mep-selection-count strong');
-                if (count === this.maxPhotos) {
+                if (count >= 4) {
                     $counter.css('color', '#00a32a'); // Verde
-                    $('#mep-selection-help').html('✅ <strong>Perfetto!</strong> Ora scegli la foto di copertina sotto e clicca "Crea Evento"');
-                    
-                    // Auto-scroll verso le foto selezionate
-                    $('html, body').animate({
-                        scrollTop: $('#mep-selected-photos').offset().top - 100
-                    }, 800);
+                    $('#mep-selection-help').html('✅ <strong>' + count + ' foto selezionate!</strong> Clicca "Importa in WordPress" per salvarle.');
                 } else if (count > 0) {
                     $counter.css('color', '#dba617'); // Giallo
-                    $('#mep-selection-help').html('Seleziona ancora <strong>' + (this.maxPhotos - count) + '</strong> foto');
+                    $('#mep-selection-help').html('Hai selezionato <strong>' + count + '</strong> foto. Puoi selezionarne altre o cliccare "Importa".');
                 } else {
                     $counter.css('color', '#646970'); // Grigio
-                    $('#mep-selection-help').html('Clicca sulle miniature per selezionarle');
+                    $('#mep-selection-help').html('Clicca sui pulsanti "Seleziona" sotto ogni foto per aggiungerle alla selezione');
                 }
                 
                 // Mostra/nascondi lista foto selezionate
                 if (count > 0) {
                     this.renderSelectedPhotos();
                     $('#mep-selected-photos').slideDown();
+                    
+                    // Auto-scroll verso le foto selezionate (solo se sono tante)
+                    if (count === 1) {
+                        $('html, body').animate({
+                            scrollTop: $('#mep-selected-photos').offset().top - 100
+                        }, 800);
+                    }
                 } else {
                     $('#mep-selected-photos').slideUp();
                 }
@@ -380,7 +382,7 @@
                         '&url=' + encodeURIComponent(photo.thumbnail);
                     
                     $list.append(`
-                        <div class="mep-selected-photo-item" data-photo-id="${photo.id}" style="position: relative;">
+                        <div class="mep-selected-photo-item" data-photo-id="${photo.id}">
                             <div class="mep-selected-photo-number">${index + 1}</div>
                             <img src="${proxyUrl}" alt="${photo.name}">
                             <button type="button" class="mep-remove-photo" data-photo-id="${photo.id}">
@@ -391,13 +393,21 @@
                     `);
                 });
                 
-                // Aggiorna dropdown foto di copertina
+                // Aggiorna dropdown foto di copertina (genera dinamicamente le opzioni)
                 const $featuredSelect = $('#mep-featured-image-select');
-                $featuredSelect.find('option:not(:first)').prop('disabled', false);
+                $featuredSelect.empty();
+                $featuredSelect.append('<option value="">-- Seleziona immagine di copertina --</option>');
                 
-                // Se abbiamo 4 foto, abilita tutte le opzioni
-                if (this.selectedPhotos.length === this.maxPhotos) {
+                this.selectedPhotos.forEach((photo, index) => {
+                    $featuredSelect.append(`<option value="${index}">📷 Foto ${index + 1} - ${photo.name}</option>`);
+                });
+                
+                // Richiedi selezione copertina se abbiamo almeno 1 foto
+                if (this.selectedPhotos.length > 0) {
                     $featuredSelect.prop('required', true);
+                    $('#mep-featured-image-section').slideDown();
+                } else {
+                    $('#mep-featured-image-section').slideUp();
                 }
             },
             
@@ -559,6 +569,82 @@
             }
         });
         
+        // ===== Click Importa Foto in WordPress =====
+        $(document).on('click', '#mep-import-photos-btn', function() {
+            if (PhotoSelector.selectedPhotos.length === 0) {
+                alert('Seleziona almeno una foto!');
+                return;
+            }
+            
+            if (!confirm(`Vuoi importare ${PhotoSelector.selectedPhotos.length} foto nella Media Library di WordPress?`)) {
+                return;
+            }
+            
+            const $btn = $(this);
+            const originalText = $btn.html();
+            
+            // Disabilita bottone
+            $btn.prop('disabled', true).html('<span class="mep-spinner"></span> Importazione in corso...');
+            
+            // Nascondi eventuali messaggi precedenti
+            $('#mep-imported-links-container').slideUp();
+            
+            // Prepara dati
+            const photoIds = PhotoSelector.selectedPhotos.map(p => p.id);
+            const photoNames = PhotoSelector.selectedPhotos.map(p => p.name);
+            const folderId = $('#event_folder_id').val();
+            
+            // AJAX
+            $.ajax({
+                url: mepData.ajax_url,
+                type: 'POST',
+                data: {
+                    action: 'mep_import_photos_only',
+                    nonce: mepData.nonce,
+                    photo_ids: photoIds.join(','),
+                    photo_names: photoNames.join('|||'), // Separator
+                    folder_id: folderId
+                },
+                success: function(response) {
+                    console.log('✅ Risposta importazione foto:', response);
+                    
+                    if (response.success) {
+                        // Mostra link foto importate
+                        let linksHtml = '<h4>✅ Foto Importate con Successo!</h4>';
+                        linksHtml += '<p style="margin: 10px 0; color: #646970;">Ecco i link delle foto nella tua Media Library:</p>';
+                        linksHtml += '<ul>';
+                        
+                        response.data.photo_urls.forEach((url, idx) => {
+                            const name = photoNames[idx] || `Foto ${idx + 1}`;
+                            linksHtml += `<li><strong>${idx + 1}. ${name}</strong><br><a href="${url}" target="_blank">${url}</a></li>`;
+                        });
+                        
+                        linksHtml += '</ul>';
+                        
+                        $('#mep-imported-links-container').html(linksHtml).slideDown();
+                        
+                        // Auto-scroll verso i link
+                        $('html, body').animate({
+                            scrollTop: $('#mep-imported-links-container').offset().top - 100
+                        }, 800);
+                        
+                        // Riabilita bottone
+                        $btn.prop('disabled', false).html(originalText);
+                        
+                        alert('✅ ' + response.data.photo_urls.length + ' foto importate con successo!');
+                    } else {
+                        alert('❌ Errore: ' + response.data.message);
+                        $btn.prop('disabled', false).html(originalText);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('❌ Errore AJAX importazione:', {xhr, status, error});
+                    alert('❌ Errore di connessione durante l\'importazione');
+                    $btn.prop('disabled', false).html(originalText);
+                }
+            });
+        });
+        
         // ===== Submit Form =====
         MEP.form.on('submit', function(e) {
             e.preventDefault();
@@ -569,8 +655,8 @@
                 return;
             }
             
-            if (PhotoSelector.selectedPhotos.length !== 4) {
-                alert('Devi selezionare esattamente 4 foto!');
+            if (PhotoSelector.selectedPhotos.length === 0) {
+                alert('Seleziona almeno una foto!');
                 return;
             }
             

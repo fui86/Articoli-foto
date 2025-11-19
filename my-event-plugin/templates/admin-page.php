@@ -111,11 +111,11 @@ defined('ABSPATH') || exit;
                                 <span class="dashicons dashicons-format-gallery" style="color: #2271b1; font-size: 20px;"></span>
                                 <span class="mep-selection-count" style="font-size: 15px;">
                                     <?php _e('Foto selezionate:', 'my-event-plugin'); ?> 
-                                    <strong style="color: #2271b1; font-size: 18px;">0/4</strong>
+                                    <strong style="color: #2271b1; font-size: 18px;">0</strong>
                                 </span>
                             </div>
                             <div id="mep-selection-help" style="font-size: 13px; color: #646970;">
-                                <?php _e('Clicca sulle miniature per selezionarle', 'my-event-plugin'); ?>
+                                <?php _e('Clicca sui pulsanti "Seleziona" sotto ogni foto per aggiungerle alla selezione', 'my-event-plugin'); ?>
                             </div>
                         </div>
                         
@@ -130,32 +130,30 @@ defined('ABSPATH') || exit;
                         <!-- Foto Selezionate -->
                         <div id="mep-selected-photos" class="mep-selected-photos" style="display:none;">
                             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
-                                <h3 style="margin: 0;"><?php _e('✓ Foto Che Verranno Importate:', 'my-event-plugin'); ?></h3>
+                                <h3 style="margin: 0;"><?php _e('✓ Foto Selezionate', 'my-event-plugin'); ?></h3>
                                 <button type="button" id="mep-clear-selection" class="button button-secondary button-small">
                                     <?php _e('Cancella Selezione', 'my-event-plugin'); ?>
                                 </button>
                             </div>
                             <p style="margin: 0 0 15px 0; color: #646970; font-size: 13px;">
-                                <?php _e('Queste 4 foto verranno scaricate da Google Drive e aggiunte alla galleria WordPress. Clicca sulla X per rimuoverle.', 'my-event-plugin'); ?>
+                                <?php _e('Queste foto verranno scaricate da Google Drive e aggiunte alla Media Library di WordPress. Clicca sulla X per rimuoverne una.', 'my-event-plugin'); ?>
                             </p>
                             <div id="mep-selected-photos-list" class="mep-selected-photos-list"></div>
                             
-                            <div class="mep-featured-image-selector" style="margin-top: 25px;">
-                                <label class="mep-label required" style="font-size: 15px;">
-                                    <span class="dashicons dashicons-format-image"></span>
-                                    <?php _e('Passo 3: Scegli la Foto di Copertina', 'my-event-plugin'); ?>
-                                </label>
-                                <p style="margin: 8px 0; color: #646970; font-size: 13px;">
-                                    <?php _e('Questa sarà l\'immagine in evidenza che appare nelle anteprime dell\'articolo', 'my-event-plugin'); ?>
+                            <!-- Pulsante Importa Foto -->
+                            <div class="mep-import-photos-action">
+                                <button type="button" id="mep-import-photos-btn" class="mep-import-photos-btn">
+                                    <span class="dashicons dashicons-download" style="font-size: 20px; margin-top: 2px;"></span>
+                                    <?php _e('Importa Foto in WordPress', 'my-event-plugin'); ?>
+                                </button>
+                                <p style="margin: 10px 0 0 0; color: white; font-size: 13px; opacity: 0.95;">
+                                    <?php _e('Le foto verranno scaricate e salvate nella Media Library', 'my-event-plugin'); ?>
                                 </p>
-                                <select id="mep-featured-image-select" name="featured_image_index" class="mep-select" required style="max-width: 300px;">
-                                    <option value=""><?php _e('-- Seleziona immagine di copertina --', 'my-event-plugin'); ?></option>
-                                    <option value="0"><?php _e('📷 Foto 1 (Prima)', 'my-event-plugin'); ?></option>
-                                    <option value="1"><?php _e('📷 Foto 2', 'my-event-plugin'); ?></option>
-                                    <option value="2"><?php _e('📷 Foto 3', 'my-event-plugin'); ?></option>
-                                    <option value="3"><?php _e('📷 Foto 4 (Ultima)', 'my-event-plugin'); ?></option>
-                                </select>
                             </div>
+                            
+                            <!-- Container per i link delle foto importate -->
+                            <div id="mep-imported-links-container" class="mep-imported-links" style="display:none;"></div>
+                            
                         </div>
                         
                         <!-- Campo nascosto con gli ID delle foto selezionate -->
@@ -163,6 +161,20 @@ defined('ABSPATH') || exit;
                     </div>
                     
                     <hr style="margin: 30px 0; border: 0; border-top: 2px solid #2271b1;">
+                </div>
+                
+                <!-- 🌟 PASSO 3: Scelta Copertina -->
+                <div id="mep-featured-image-section" class="mep-section" style="display:none;">
+                    <h2 class="mep-section-title">
+                        <span class="dashicons dashicons-format-image"></span>
+                        <?php _e('Passo 3: Scegli la Foto di Copertina', 'my-event-plugin'); ?>
+                    </h2>
+                    <p style="margin: 0 0 15px 0; color: #646970;">
+                        <?php _e('Seleziona quale foto usare come immagine in evidenza dell\'articolo (quella che appare nelle anteprime)', 'my-event-plugin'); ?>
+                    </p>
+                    <select id="mep-featured-image-select" name="featured_image_index" class="mep-select" style="max-width: 100%;">
+                        <option value=""><?php _e('-- Seleziona immagine di copertina --', 'my-event-plugin'); ?></option>
+                    </select>
                 </div>
                 
                 <!-- 📝 PASSO 4: Dettagli Evento -->

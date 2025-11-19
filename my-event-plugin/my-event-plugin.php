@@ -71,6 +71,7 @@ class My_Event_Plugin {
         add_action('wp_ajax_mep_get_template_preview', [$this, 'handle_get_template_preview']);
         add_action('wp_ajax_mep_browse_gdrive_folder', [$this, 'handle_browse_gdrive_folder']); // 🚀 Nuovo browser
         add_action('wp_ajax_mep_proxy_thumbnail', [$this, 'handle_proxy_thumbnail']); // 🖼️ Proxy miniature
+        add_action('wp_ajax_mep_import_photos_only', [$this, 'handle_import_photos_only']); // 📸 Importa solo foto
         
         // Shortcode per frontend (opzionale)
         add_shortcode('my_event_form', [$this, 'render_frontend_form']);
@@ -551,6 +552,78 @@ class My_Event_Plugin {
                 'code' => 'exception',
                 'folder_id' => $folder_id,
                 'error_details' => $e->getMessage()
+            ]);
+        }
+    }
+    
+    /**
+     * Handler AJAX per importare solo le foto senza creare l'articolo
+     * 📸 Importa foto nella Media Library e restituisce i link
+     */
+    public function handle_import_photos_only() {
+        // Verifica nonce
+        check_ajax_referer('mep_nonce', 'nonce');
+        
+        MEP_Helpers::log_info("📸 AJAX: handle_import_photos_only chiamato");
+        
+        // Ottieni dati
+        $photo_ids_string = isset($_POST['photo_ids']) ? sanitize_text_field($_POST['photo_ids']) : '';
+        $photo_names_string = isset($_POST['photo_names']) ? $_POST['photo_names'] : '';
+        $folder_id = isset($_POST['folder_id']) ? sanitize_text_field($_POST['folder_id']) : '';
+        
+        if (empty($photo_ids_string)) {
+            wp_send_json_error(['message' => __('Nessuna foto selezionata', 'my-event-plugin')]);
+            return;
+        }
+        
+        // Parse dati
+        $photo_ids = explode(',', $photo_ids_string);
+        $photo_names = !empty($photo_names_string) ? explode('|||', $photo_names_string) : [];
+        
+        MEP_Helpers::log_info("📸 Importazione " . count($photo_ids) . " foto");
+        
+        try {
+            // Importa foto tramite API Google Drive
+            $attachment_ids = MEP_Google_Drive_API::import_files($photo_ids, $photo_names);
+            
+            if (is_wp_error($attachment_ids)) {
+                MEP_Helpers::log_error("❌ Errore import foto", $attachment_ids->get_error_message());
+                wp_send_json_error(['message' => $attachment_ids->get_error_message()]);
+                return;
+            }
+            
+            if (empty($attachment_ids)) {
+                wp_send_json_error(['message' => __('Nessuna foto è stata importata', 'my-event-plugin')]);
+                return;
+            }
+            
+            // Ottieni URL delle foto importate
+            $photo_urls = [];
+            foreach ($attachment_ids as $att_id) {
+                $url = wp_get_attachment_url($att_id);
+                if ($url) {
+                    $photo_urls[] = $url;
+                }
+            }
+            
+            MEP_Helpers::log_info("✅ Importate " . count($photo_urls) . " foto con successo");
+            
+            wp_send_json_success([
+                'attachment_ids' => $attachment_ids,
+                'photo_urls' => $photo_urls,
+                'count' => count($photo_urls),
+                'folder_id' => $folder_id
+            ]);
+            
+        } catch (Throwable $e) {
+            MEP_Helpers::log_error("💥 Errore importazione foto", [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+            
+            wp_send_json_error([
+                'message' => sprintf(__('Errore durante l\'importazione: %s', 'my-event-plugin'), $e->getMessage())
             ]);
         }
     }
