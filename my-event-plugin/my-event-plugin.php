@@ -456,6 +456,105 @@ class My_Event_Plugin {
     }
     
     /**
+     * Handler AJAX per navigare nelle cartelle di Google Drive
+     * 🚀 Nuovo browser Google Drive integrato
+     */
+    public function handle_browse_gdrive_folder() {
+        // Verifica nonce
+        check_ajax_referer('mep_nonce', 'nonce');
+        
+        // Log richiesta
+        MEP_Helpers::log_info("🚀 AJAX: handle_browse_gdrive_folder chiamato");
+        
+        // Ottieni folder ID (default: root)
+        $folder_id = sanitize_text_field($_POST['folder_id'] ?? 'root');
+        
+        MEP_Helpers::log_info("📁 Navigazione cartella: {$folder_id}");
+        
+        try {
+            // Verifica autorizzazione OAuth
+            if (!MEP_Google_OAuth::is_authorized()) {
+                MEP_Helpers::log_error("❌ OAuth non autorizzato");
+                wp_send_json_error([
+                    'message' => __('Google Drive non è autorizzato. Vai nelle Impostazioni per autorizzare.', 'my-event-plugin'),
+                    'code' => 'oauth_not_authorized'
+                ]);
+                return;
+            }
+            
+            // Recupera cartelle e file dalla API
+            $result = MEP_Google_Drive_API::list_folders_and_files($folder_id, true, 'image/');
+            
+            if (is_wp_error($result)) {
+                MEP_Helpers::log_error("❌ Errore API list_folders_and_files", [
+                    'code' => $result->get_error_code(),
+                    'message' => $result->get_error_message()
+                ]);
+                
+                wp_send_json_error([
+                    'message' => $result->get_error_message(),
+                    'code' => $result->get_error_code(),
+                    'folder_id' => $folder_id
+                ]);
+                return;
+            }
+            
+            // Recupera info cartella per breadcrumb (solo se non è root)
+            $folder_info = null;
+            if ($folder_id !== 'root') {
+                $folder_info = MEP_Google_Drive_API::get_folder_info($folder_id);
+                if (is_wp_error($folder_info)) {
+                    MEP_Helpers::log_error("⚠️ Impossibile recuperare info cartella");
+                    $folder_info = null;
+                }
+            }
+            
+            // Formatta le foto per la risposta
+            $photos = [];
+            if (!empty($result['files'])) {
+                foreach ($result['files'] as $file) {
+                    $photos[] = [
+                        'id' => $file['id'],
+                        'name' => $file['name'],
+                        'thumbnail' => $file['thumbnailLink'] ?? '',
+                        'webViewLink' => $file['webViewLink'] ?? '',
+                        'mimeType' => $file['mimeType'] ?? ''
+                    ];
+                }
+            }
+            
+            MEP_Helpers::log_info("✅ Successo! Cartelle: " . count($result['folders']) . ", Foto: " . count($photos));
+            
+            wp_send_json_success([
+                'folders' => $result['folders'] ?? [],
+                'photos' => $photos,
+                'folder_id' => $folder_id,
+                'folder_info' => $folder_info,
+                'total_folders' => count($result['folders'] ?? []),
+                'total_photos' => count($photos)
+            ]);
+            
+        } catch (Throwable $e) {
+            MEP_Helpers::log_error("💥 Errore catturato in handle_browse_gdrive_folder", [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            wp_send_json_error([
+                'message' => sprintf(
+                    __('Errore server: %s', 'my-event-plugin'),
+                    $e->getMessage()
+                ),
+                'code' => 'exception',
+                'folder_id' => $folder_id,
+                'error_details' => $e->getMessage()
+            ]);
+        }
+    }
+    
+    /**
      * Traccia i file importati dal plugin
      */
     public function track_imported_file($attachment_id, $cached_node) {

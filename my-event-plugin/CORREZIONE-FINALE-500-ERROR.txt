@@ -1,0 +1,108 @@
+🔧 CORREZIONE ERRORE 500 - My Event Plugin
+=========================================
+
+❌ PROBLEMA RILEVATO:
+---------------------
+Errore 500 nel browser Google Drive:
+"class My_Event_Plugin does not have a method 'handle_browse_gdrive_folder'"
+
+
+✅ SOLUZIONE APPLICATA:
+----------------------
+Aggiunto il metodo mancante `handle_browse_gdrive_folder()` alla classe 
+principale `My_Event_Plugin` nel file `my-event-plugin.php`
+
+
+📦 FILE DA SOSTITUIRE SUL SERVER:
+---------------------------------
+1. my-event-plugin.php          ← AGGIORNATO (aggiunto metodo handle_browse_gdrive_folder)
+2. templates/admin-page.php     ← RICREATO (100% nuovo, zero Use-your-Drive)
+
+
+🚀 PROCEDURA DI AGGIORNAMENTO:
+------------------------------
+
+STEP 1: Fai il backup dei file attuali sul server
+   - Scarica my-event-plugin.php
+   - Scarica templates/admin-page.php
+
+STEP 2: Carica i nuovi file sul server
+   - Sostituisci my-event-plugin.php
+   - Sostituisci templates/admin-page.php
+
+STEP 3: Disattiva e riattiva il plugin
+   WordPress Admin → Plugin → Disattiva "Gestore Eventi Automatico"
+   WordPress Admin → Plugin → Attiva "Gestore Eventi Automatico"
+
+STEP 4: Svuota tutte le cache
+   - Browser: Ctrl+Shift+R (o Cmd+Shift+R su Mac)
+   - WordPress: Svuota cache se hai plugin cache
+   - Server: Se hai cache Cloudflare/Varnish, svuotala
+
+STEP 5: Verifica funzionamento
+   - Vai su: WordPress Admin → Gestione Eventi → Crea Nuovo Evento
+   - Dovresti vedere:
+     ✅ Browser Google Drive con cartelle
+     ✅ Breadcrumb "My Drive"
+     ✅ Pulsante "Seleziona Questa Cartella"
+     ✅ ZERO messaggi di errore
+
+
+🔍 COSA CONTROLARE NEL DEBUG.LOG:
+---------------------------------
+Se tutto funziona, dovresti vedere:
+   ✅ "🚀 AJAX: handle_browse_gdrive_folder chiamato"
+   ✅ "📁 Navigazione cartella: root"
+   ✅ "✅ Token OAuth ottenuto"
+   ✅ "✅ Successo! Cartelle: X, Foto: Y"
+
+Se ci sono ancora errori, cerca:
+   ❌ "PHP Fatal error"
+   ❌ "PHP Warning"
+   ❌ Qualsiasi messaggio con "MEP_Google_Drive_API"
+
+
+📋 ELENCO COMPLETO METODI AJAX ATTIVI:
+--------------------------------------
+1. mep_process_event_creation    → Crea l'evento finale
+2. mep_validate_folder            → Valida cartella Google Drive
+3. mep_get_folder_photos          → Recupera foto da cartella
+4. mep_get_template_preview       → Anteprima template
+5. mep_browse_gdrive_folder       → 🆕 NUOVO! Naviga cartelle Google Drive
+
+
+🎯 RISULTATO ATTESO:
+-------------------
+Browser Google Drive integrato e funzionante:
+   📁 My Drive
+      ├── Cartella 1
+      ├── Cartella 2
+      └── Cartella 3
+   
+   [Seleziona Questa Cartella e Carica Foto]
+
+Clic su cartella → Apre cartella → Mostra sottocartelle e foto
+Clic "Seleziona Cartella" → Carica foto per selezione
+
+
+⚠️ SE PERSISTE L'ERRORE 500:
+---------------------------
+1. Verifica che ENTRAMBI i file siano stati sostituiti
+2. Controlla che non ci siano errori di sintassi PHP (cerca "Parse error")
+3. Verifica che il plugin sia attivato
+4. Controlla che OAuth sia autorizzato (vai in Impostazioni)
+5. Leggi le ultime 50 righe del debug.log e mandamele
+
+
+💡 NOTE TECNICHE:
+----------------
+- Il metodo handle_browse_gdrive_folder è stato aggiunto alla riga 462
+- Chiama MEP_Google_Drive_API::list_folders_and_files() per recuperare cartelle/file
+- Chiama MEP_Google_Drive_API::get_folder_info() per il breadcrumb
+- Gestisce completamente errori OAuth e API
+- Log dettagliati per debug
+
+
+Data correzione: 19 Novembre 2025
+Versione: 1.2.0
+Issue risolto: Errore 500 "method does not exist"
