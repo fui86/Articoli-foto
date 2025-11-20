@@ -212,7 +212,8 @@
 /* ===== Google Drive Section ===== */
 .mep-gdrive-section {
     background: #fff;
-    border: 2px dashed #c3c4c7;
+    border: 2px solid #e0e0e0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
 }
 
 .mep-folder-selector-container {
@@ -227,11 +228,36 @@
 /* Stile per Use-your-Drive browser */
 #mep-uyd-browser .entry.folder {
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    transition: all 0.3s ease;
+    position: relative;
 }
 
 #mep-uyd-browser .entry.folder:hover {
-    background-color: #f0f6fc !important;
+    background-color: #e3f2fd !important;
+    transform: translateX(5px);
+    box-shadow: 0 2px 8px rgba(34, 113, 177, 0.2);
+}
+
+#mep-uyd-browser .entry.folder:hover::before {
+    content: "👆 Clicca per selezionare";
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: #2271b1;
+    color: white;
+    padding: 5px 12px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+    z-index: 10;
+    animation: pulseHint 1.5s ease-in-out infinite;
+}
+
+@keyframes pulseHint {
+    0%, 100% { opacity: 1; transform: translateY(-50%) scale(1); }
+    50% { opacity: 0.8; transform: translateY(-50%) scale(1.05); }
 }
 
 #mep-uyd-browser .entry.folder.mep-selected-folder {
@@ -247,29 +273,64 @@
     transform: translateY(-50%);
     background: #00a32a;
     color: white;
-    padding: 4px 10px;
-    border-radius: 12px;
-    font-size: 12px;
+    padding: 6px 14px;
+    border-radius: 16px;
+    font-size: 13px;
     font-weight: 600;
+    box-shadow: 0 2px 6px rgba(0, 163, 42, 0.3);
+    animation: fadeInRight 0.3s ease;
+}
+
+@keyframes fadeInRight {
+    from {
+        opacity: 0;
+        transform: translateY(-50%) translateX(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(-50%) translateX(0);
+    }
 }
 
 .mep-validation-message {
-    padding: 10px 15px;
-    border-radius: 4px;
-    margin-bottom: 15px;
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
     font-size: 14px;
+    line-height: 1.6;
+    animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .mep-validation-message.success {
-    background: #d5e8d4;
+    background: linear-gradient(to right, #d5f4e6, #c1f0d8);
     border-left: 4px solid #00a32a;
     color: #006600;
+    box-shadow: 0 2px 6px rgba(0, 163, 42, 0.15);
 }
 
 .mep-validation-message.error {
-    background: #f8d7da;
+    background: linear-gradient(to right, #ffe5e8, #ffd5da);
     border-left: 4px solid #d63638;
     color: #721c24;
+    box-shadow: 0 2px 6px rgba(214, 54, 56, 0.15);
+}
+
+.mep-validation-message.validating {
+    background: linear-gradient(to right, #e3f2fd, #d1e7ff);
+    border-left: 4px solid #2271b1;
+    color: #0d47a1;
+    box-shadow: 0 2px 6px rgba(34, 113, 177, 0.15);
 }
 
 /* ===== Form Actions ===== */
@@ -390,14 +451,15 @@
 }
 
 .mep-selection-info {
-    background: #f0f6fc;
-    border: 1px solid #2271b1;
-    border-radius: 4px;
-    padding: 12px 15px;
+    background: linear-gradient(to right, #f0f6fc, #e8f4f8);
+    border: 2px solid #2271b1;
+    border-radius: 8px;
+    padding: 15px 20px;
     margin-bottom: 20px;
     display: flex;
-    align-items: center;
-    justify-content: space-between;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: 0 2px 4px rgba(34, 113, 177, 0.1);
 }
 
 .mep-selection-count {
@@ -412,13 +474,13 @@
 
 .mep-photo-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-    gap: 15px;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 20px;
     padding: 20px;
     background: #f6f7f7;
     border: 1px solid #dcdcde;
     border-radius: 4px;
-    max-height: 500px;
+    max-height: 600px;
     overflow-y: auto;
 }
 
@@ -439,77 +501,159 @@
 .mep-photo-item {
     position: relative;
     cursor: pointer;
-    border-radius: 8px;
+    border-radius: 12px;
     overflow: hidden;
     background: #fff;
-    border: 3px solid transparent;
-    transition: all 0.3s ease;
-    aspect-ratio: 1;
+    border: 3px solid #e0e0e0;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    display: flex;
+    flex-direction: column;
 }
 
 .mep-photo-item:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transform: translateY(-4px) scale(1.02);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+    border-color: #2271b1;
 }
 
-.mep-photo-item img {
+.mep-photo-thumb {
+    position: relative;
+    width: 100%;
+    min-height: 180px;
+    max-height: 300px;
+    overflow: hidden;
+    background: #f0f0f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mep-photo-thumb img {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     display: block;
+}
+
+.mep-photo-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to top, rgba(0,0,0,0.85), rgba(0,0,0,0.4));
+    padding: 15px 10px;
+    transform: translateY(0);
+    transition: all 0.3s ease;
+}
+
+.mep-photo-item:hover .mep-photo-overlay {
+    background: linear-gradient(to top, rgba(34,113,177,0.95), rgba(34,113,177,0.6));
+}
+
+.mep-select-photo-btn {
+    width: 100%;
+    padding: 8px 12px;
+    background: white;
+    color: #2271b1;
+    border: 2px solid #2271b1;
+    border-radius: 6px;
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-align: center;
+}
+
+.mep-select-photo-btn:hover {
+    background: #2271b1;
+    color: white;
+    transform: scale(1.05);
+}
+
+.mep-select-photo-btn.selected {
+    background: #00a32a;
+    color: white;
+    border-color: #00a32a;
+}
+
+.mep-select-photo-btn.selected:hover {
+    background: #008a24;
+    border-color: #008a24;
+}
+
+.mep-photo-info {
+    padding: 10px;
+    background: white;
+    border-top: 1px solid #e0e0e0;
 }
 
 .mep-photo-item.selected {
     border-color: #00a32a;
-    box-shadow: 0 0 0 2px #00a32a;
+    box-shadow: 0 0 0 3px rgba(0, 163, 42, 0.3), 0 4px 12px rgba(0, 163, 42, 0.2);
+    transform: scale(0.95);
+}
+
+.mep-photo-item.selected:hover {
+    transform: scale(0.97);
 }
 
 .mep-photo-item .mep-photo-check {
     position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 28px;
-    height: 28px;
+    top: 10px;
+    right: 10px;
+    width: 32px;
+    height: 32px;
     background: #00a32a;
     border-radius: 50%;
     display: none;
     align-items: center;
     justify-content: center;
     color: white;
-    font-size: 16px;
+    font-size: 18px;
     font-weight: bold;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+    animation: checkBounce 0.3s ease;
+}
+
+@keyframes checkBounce {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
 }
 
 .mep-photo-item.selected .mep-photo-check {
     display: flex;
 }
 
-.mep-photo-item .mep-photo-name {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
-    color: white;
-    padding: 8px;
-    font-size: 11px;
-    word-break: break-word;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-}
-
-.mep-photo-item:hover .mep-photo-name {
-    opacity: 1;
+.mep-photo-info .mep-photo-name {
+    font-size: 12px;
+    color: #1d2327;
+    font-weight: 500;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 /* ===== Selected Photos Preview ===== */
 .mep-selected-photos {
-    margin-top: 25px;
-    padding: 20px;
-    background: #fff;
-    border: 2px solid #00a32a;
-    border-radius: 4px;
+    margin-top: 30px;
+    padding: 25px;
+    background: linear-gradient(to bottom, #ffffff, #f9fff9);
+    border: 3px solid #00a32a;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 163, 42, 0.1);
+    animation: slideInUp 0.4s ease;
+}
+
+@keyframes slideInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .mep-selected-photos h3 {
@@ -536,17 +680,97 @@
 
 .mep-selected-photos-list {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
     gap: 15px;
     margin-bottom: 20px;
+}
+
+.mep-selected-photo-item {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    border: 3px solid #00a32a;
+    box-shadow: 0 2px 8px rgba(0, 163, 42, 0.2);
+    background: white;
+}
+
+.mep-selected-photo-item img {
+    width: 100%;
+    height: 200px;
+    object-fit: contain;
+    background: #f0f0f0;
+    display: block;
+}
+
+.mep-selected-photo-number {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    width: 28px;
+    height: 28px;
+    background: #00a32a;
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    font-size: 14px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+}
+
+.mep-remove-photo {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 28px;
+    height: 28px;
+    background: #d63638;
+    color: white;
+    border: none;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    padding: 0;
+}
+
+.mep-selected-photo-item:hover .mep-remove-photo {
+    opacity: 1;
+}
+
+.mep-remove-photo:hover {
+    background: #b01e20;
+    transform: scale(1.1);
+}
+
+.mep-photo-name {
+    padding: 8px;
+    font-size: 11px;
+    color: #646970;
+    text-align: center;
+    background: #f9f9f9;
+    border-top: 1px solid #e0e0e0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .mep-selected-photo-preview {
     position: relative;
     aspect-ratio: 1;
-    border-radius: 8px;
+    border-radius: 12px;
     overflow: hidden;
-    border: 2px solid #00a32a;
+    border: 3px solid #00a32a;
+    box-shadow: 0 2px 8px rgba(0, 163, 42, 0.2);
+    transition: transform 0.3s ease;
+}
+
+.mep-selected-photo-preview:hover {
+    transform: scale(1.05);
 }
 
 .mep-selected-photo-preview img {
@@ -612,6 +836,79 @@
 }
 
 /* ===== Responsive ===== */
+.mep-import-photos-action {
+    margin-top: 20px;
+    padding: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 8px;
+    text-align: center;
+}
+
+.mep-import-photos-btn {
+    background: white !important;
+    color: #667eea !important;
+    border: 3px solid white !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    padding: 15px 30px !important;
+    border-radius: 8px !important;
+    cursor: pointer;
+    transition: all 0.3s ease !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.mep-import-photos-btn:hover {
+    transform: translateY(-2px) scale(1.05);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+}
+
+.mep-import-photos-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+}
+
+.mep-imported-links {
+    margin-top: 20px;
+    padding: 20px;
+    background: white;
+    border: 2px solid #00a32a;
+    border-radius: 8px;
+}
+
+.mep-imported-links h4 {
+    margin: 0 0 15px 0;
+    color: #00a32a;
+    font-size: 16px;
+}
+
+.mep-imported-links ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.mep-imported-links li {
+    margin: 10px 0;
+    padding: 10px;
+    background: #f6f7f7;
+    border-radius: 4px;
+    font-size: 12px;
+    font-family: monospace;
+    word-break: break-all;
+}
+
+.mep-imported-links li a {
+    color: #2271b1;
+    text-decoration: none;
+}
+
+.mep-imported-links li a:hover {
+    text-decoration: underline;
+}
+
 @media (max-width: 782px) {
     .mep-admin-wrap {
         margin-right: 10px;
@@ -632,7 +929,7 @@
     }
     
     .mep-photo-grid {
-        grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
         gap: 10px;
         padding: 15px;
     }

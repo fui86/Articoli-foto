@@ -2,13 +2,12 @@
 /**
  * Plugin Name: Gestore Eventi Automatico
  * Plugin URI: https://tuosito.it
- * Description: Crea automaticamente articoli per eventi con foto da Google Drive usando Use-your-Drive
- * Version: 1.0.0
+ * Description: Crea automaticamente articoli per eventi con foto da Google Drive con OAuth nativo
+ * Version: 1.2.0
  * Author: Il Tuo Nome
  * Author URI: https://tuosito.it
  * Requires at least: 5.8
  * Requires PHP: 7.4
- * Requires Plugins: use-your-drive
  * License: GPL v2 or later
  * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  * Text Domain: my-event-plugin
@@ -70,6 +69,9 @@ class My_Event_Plugin {
         add_action('wp_ajax_mep_validate_folder', [$this, 'handle_folder_validation']);
         add_action('wp_ajax_mep_get_folder_photos', [$this, 'handle_get_folder_photos']);
         add_action('wp_ajax_mep_get_template_preview', [$this, 'handle_get_template_preview']);
+        add_action('wp_ajax_mep_browse_gdrive_folder', [$this, 'handle_browse_gdrive_folder']); // 🚀 Nuovo browser
+        add_action('wp_ajax_mep_proxy_thumbnail', [$this, 'handle_proxy_thumbnail']); // 🖼️ Proxy miniature
+        add_action('wp_ajax_mep_import_photos_only', [$this, 'handle_import_photos_only']); // 📸 Importa solo foto
         
         // Shortcode per frontend (opzionale)
         add_shortcode('my_event_form', [$this, 'render_frontend_form']);
@@ -101,41 +103,42 @@ class My_Event_Plugin {
      */
     private function load_dependencies() {
         require_once MEP_PLUGIN_DIR . 'includes/class-helpers.php';
+        require_once MEP_PLUGIN_DIR . 'includes/class-google-oauth.php'; // 🔐 OAuth Google
+        require_once MEP_PLUGIN_DIR . 'includes/class-google-drive-api.php'; // 🚀 API diretta
         require_once MEP_PLUGIN_DIR . 'includes/class-post-creator.php';
         require_once MEP_PLUGIN_DIR . 'includes/class-gdrive-integration.php';
     }
     
     /**
-     * Verifica che Use-your-Drive sia installato e attivo
+     * Verifica configurazione OAuth Google
      */
     public function check_dependencies() {
-        if (!class_exists('TheLion\UseyourDrive\Core')) {
-            add_action('admin_notices', [$this, 'dependency_notice']);
-            deactivate_plugins(plugin_basename(__FILE__));
-            return false;
-        }
-        
-        // Verifica che ci sia almeno un account connesso
-        $check = MEP_Helpers::check_useyourdrive_ready();
-        if (is_wp_error($check)) {
-            add_action('admin_notices', function() use ($check) {
-                echo '<div class="notice notice-warning"><p>';
-                echo '<strong>Gestore Eventi Automatico:</strong> ' . esc_html($check->get_error_message());
-                echo '</p></div>';
-            });
+        // Verifica OAuth solo se si è in una pagina del plugin
+        if (isset($_GET['page']) && in_array($_GET['page'], ['my-event-creator', 'my-event-settings'])) {
+            if (!MEP_Google_OAuth::is_authorized()) {
+                add_action('admin_notices', [$this, 'oauth_notice']);
+            }
         }
         
         return true;
     }
     
     /**
-     * Notice per dipendenze mancanti
+     * Notice se OAuth non configurato
      */
-    public function dependency_notice() {
-        echo '<div class="notice notice-error"><p>';
-        echo '<strong>Gestore Eventi Automatico</strong> richiede il plugin ';
-        echo '<strong><a href="https://www.wpcloudplugins.com/" target="_blank">Use-your-Drive</a></strong> per funzionare.';
-        echo '</p></div>';
+    public function oauth_notice() {
+        $settings_url = admin_url('admin.php?page=my-event-settings');
+        ?>
+        <div class="notice notice-warning">
+            <p>
+                <strong><?php _e('Gestore Eventi Automatico', 'my-event-plugin'); ?>:</strong>
+                <?php printf(
+                    __('⚠️ Google Drive non è autorizzato. <a href="%s"><strong>Configura OAuth nelle Impostazioni</strong></a> per usare il browser cartelle.', 'my-event-plugin'),
+                    esc_url($settings_url)
+                ); ?>
+            </p>
+        </div>
+        <?php
     }
     
     /**
@@ -304,29 +307,78 @@ class My_Event_Plugin {
      * Handler AJAX per recuperare le foto da una cartella
      */
     public function handle_get_folder_photos() {
+        // Verifica nonce
         check_ajax_referer('mep_nonce', 'nonce');
         
+        // Log richiesta
+        MEP_Helpers::log_info("AJAX: handle_get_folder_photos chiamato");
+        
+        // Ottieni folder ID
         $folder_id = sanitize_text_field($_POST['folder_id'] ?? '');
         
         if (empty($folder_id)) {
-            wp_send_json_error(['message' => __('ID cartella mancante', 'my-event-plugin')]);
+            MEP_Helpers::log_error("AJAX: ID cartella mancante");
+            wp_send_json_error([
+                'message' => __('ID cartella mancante', 'my-event-plugin'),
+                'code' => 'missing_folder_id'
+            ]);
+            return;
         }
         
-        // Ottieni la lista delle foto con thumbnail
-        $photos = MEP_GDrive_Integration::get_photos_list_with_thumbnails($folder_id);
+        MEP_Helpers::log_info("AJAX: Recupero foto dalla cartella: {$folder_id}");
         
-        if (is_wp_error($photos)) {
-            wp_send_json_error(['message' => $photos->get_error_message()]);
+        try {
+            // Ottieni la lista delle foto con thumbnail
+            $photos = MEP_GDrive_Integration::get_photos_list_with_thumbnails($folder_id);
+            
+            if (is_wp_error($photos)) {
+                MEP_Helpers::log_error("AJAX: Errore WP_Error", [
+                    'code' => $photos->get_error_code(),
+                    'message' => $photos->get_error_message()
+                ]);
+                
+                wp_send_json_error([
+                    'message' => $photos->get_error_message(),
+                    'code' => $photos->get_error_code(),
+                    'folder_id' => $folder_id
+                ]);
+                return;
+            }
+            
+            if (empty($photos)) {
+                MEP_Helpers::log_error("AJAX: Nessuna foto trovata");
+                wp_send_json_error([
+                    'message' => __('Nessuna foto trovata nella cartella', 'my-event-plugin'),
+                    'code' => 'no_photos'
+                ]);
+                return;
+            }
+            
+            MEP_Helpers::log_info("AJAX: Successo! Trovate " . count($photos) . " foto");
+            
+            wp_send_json_success([
+                'photos' => $photos,
+                'count' => count($photos),
+                'folder_id' => $folder_id
+            ]);
+            
+        } catch (Throwable $e) {
+            MEP_Helpers::log_error("AJAX: Errore catturato", [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            wp_send_json_error([
+                'message' => sprintf(
+                    __('Errore server: %s', 'my-event-plugin'),
+                    $e->getMessage()
+                ),
+                'code' => 'exception',
+                'folder_id' => $folder_id
+            ]);
         }
-        
-        if (empty($photos)) {
-            wp_send_json_error(['message' => __('Nessuna foto trovata nella cartella', 'my-event-plugin')]);
-        }
-        
-        wp_send_json_success([
-            'photos' => $photos,
-            'count' => count($photos)
-        ]);
     }
     
     /**
@@ -403,6 +455,225 @@ class My_Event_Plugin {
         $html = ob_get_clean();
         
         wp_send_json_success(['html' => $html]);
+    }
+    
+    /**
+     * Handler AJAX per navigare nelle cartelle di Google Drive
+     * 🚀 Nuovo browser Google Drive integrato
+     */
+    public function handle_browse_gdrive_folder() {
+        // Verifica nonce
+        check_ajax_referer('mep_nonce', 'nonce');
+        
+        // Log richiesta
+        MEP_Helpers::log_info("🚀 AJAX: handle_browse_gdrive_folder chiamato");
+        
+        // Ottieni folder ID (default: root)
+        $folder_id = sanitize_text_field($_POST['folder_id'] ?? 'root');
+        
+        MEP_Helpers::log_info("📁 Navigazione cartella: {$folder_id}");
+        
+        try {
+            // Verifica autorizzazione OAuth
+            if (!MEP_Google_OAuth::is_authorized()) {
+                MEP_Helpers::log_error("❌ OAuth non autorizzato");
+                wp_send_json_error([
+                    'message' => __('Google Drive non è autorizzato. Vai nelle Impostazioni per autorizzare.', 'my-event-plugin'),
+                    'code' => 'oauth_not_authorized'
+                ]);
+                return;
+            }
+            
+            // Recupera cartelle e file dalla API
+            $result = MEP_Google_Drive_API::list_folders_and_files($folder_id, true, 'image/');
+            
+            if (is_wp_error($result)) {
+                MEP_Helpers::log_error("❌ Errore API list_folders_and_files", [
+                    'code' => $result->get_error_code(),
+                    'message' => $result->get_error_message()
+                ]);
+                
+                wp_send_json_error([
+                    'message' => $result->get_error_message(),
+                    'code' => $result->get_error_code(),
+                    'folder_id' => $folder_id
+                ]);
+                return;
+            }
+            
+            // Recupera info cartella per breadcrumb (solo se non è root)
+            $folder_info = null;
+            if ($folder_id !== 'root') {
+                $folder_info = MEP_Google_Drive_API::get_folder_info($folder_id);
+                if (is_wp_error($folder_info)) {
+                    MEP_Helpers::log_error("⚠️ Impossibile recuperare info cartella");
+                    $folder_info = null;
+                }
+            }
+            
+            // Formatta le foto per la risposta
+            $photos = [];
+            if (!empty($result['files'])) {
+                foreach ($result['files'] as $file) {
+                    $photos[] = [
+                        'id' => $file['id'],
+                        'name' => $file['name'],
+                        'thumbnail' => $file['thumbnailLink'] ?? '',
+                        'webViewLink' => $file['webViewLink'] ?? '',
+                        'mimeType' => $file['mimeType'] ?? ''
+                    ];
+                }
+            }
+            
+            MEP_Helpers::log_info("✅ Successo! Cartelle: " . count($result['folders']) . ", Foto: " . count($photos));
+            
+            wp_send_json_success([
+                'folders' => $result['folders'] ?? [],
+                'photos' => $photos,
+                'folder_id' => $folder_id,
+                'folder_info' => $folder_info,
+                'total_folders' => count($result['folders'] ?? []),
+                'total_photos' => count($photos)
+            ]);
+            
+        } catch (Throwable $e) {
+            MEP_Helpers::log_error("💥 Errore catturato in handle_browse_gdrive_folder", [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            
+            wp_send_json_error([
+                'message' => sprintf(
+                    __('Errore server: %s', 'my-event-plugin'),
+                    $e->getMessage()
+                ),
+                'code' => 'exception',
+                'folder_id' => $folder_id,
+                'error_details' => $e->getMessage()
+            ]);
+        }
+    }
+    
+    /**
+     * Handler AJAX per importare solo le foto senza creare l'articolo
+     * 📸 Importa foto nella Media Library e restituisce i link
+     */
+    public function handle_import_photos_only() {
+        // Verifica nonce
+        check_ajax_referer('mep_nonce', 'nonce');
+        
+        MEP_Helpers::log_info("📸 AJAX: handle_import_photos_only chiamato");
+        
+        // Ottieni dati
+        $photo_ids_string = isset($_POST['photo_ids']) ? sanitize_text_field($_POST['photo_ids']) : '';
+        $photo_names_string = isset($_POST['photo_names']) ? $_POST['photo_names'] : '';
+        $folder_id = isset($_POST['folder_id']) ? sanitize_text_field($_POST['folder_id']) : '';
+        
+        if (empty($photo_ids_string)) {
+            wp_send_json_error(['message' => __('Nessuna foto selezionata', 'my-event-plugin')]);
+            return;
+        }
+        
+        // Parse dati
+        $photo_ids = explode(',', $photo_ids_string);
+        $photo_names = !empty($photo_names_string) ? explode('|||', $photo_names_string) : [];
+        
+        MEP_Helpers::log_info("📸 Importazione " . count($photo_ids) . " foto");
+        
+        try {
+            // Importa foto tramite API Google Drive
+            $attachment_ids = MEP_Google_Drive_API::import_files($photo_ids, $photo_names);
+            
+            if (is_wp_error($attachment_ids)) {
+                MEP_Helpers::log_error("❌ Errore import foto", $attachment_ids->get_error_message());
+                wp_send_json_error(['message' => $attachment_ids->get_error_message()]);
+                return;
+            }
+            
+            if (empty($attachment_ids)) {
+                wp_send_json_error(['message' => __('Nessuna foto è stata importata', 'my-event-plugin')]);
+                return;
+            }
+            
+            // Ottieni URL delle foto importate
+            $photo_urls = [];
+            foreach ($attachment_ids as $att_id) {
+                $url = wp_get_attachment_url($att_id);
+                if ($url) {
+                    $photo_urls[] = $url;
+                }
+            }
+            
+            MEP_Helpers::log_info("✅ Importate " . count($photo_urls) . " foto con successo");
+            
+            wp_send_json_success([
+                'attachment_ids' => $attachment_ids,
+                'photo_urls' => $photo_urls,
+                'count' => count($photo_urls),
+                'folder_id' => $folder_id
+            ]);
+            
+        } catch (Throwable $e) {
+            MEP_Helpers::log_error("💥 Errore importazione foto", [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine()
+            ]);
+            
+            wp_send_json_error([
+                'message' => sprintf(__('Errore durante l\'importazione: %s', 'my-event-plugin'), $e->getMessage())
+            ]);
+        }
+    }
+    
+    /**
+     * Handler AJAX per fare proxy delle miniature Google Drive
+     * Le miniature richiedono autenticazione OAuth, questo endpoint le serve al browser
+     * 🖼️ Proxy per miniature
+     */
+    public function handle_proxy_thumbnail() {
+        // Verifica nonce
+        check_ajax_referer('mep_nonce', 'nonce');
+        
+        // Ottieni URL miniatura
+        $thumbnail_url = isset($_GET['url']) ? $_GET['url'] : '';
+        
+        if (empty($thumbnail_url)) {
+            status_header(400);
+            die('Missing URL');
+        }
+        
+        // Ottieni access token
+        $access_token = MEP_Google_OAuth::get_access_token();
+        
+        if (is_wp_error($access_token)) {
+            status_header(403);
+            die('Unauthorized');
+        }
+        
+        // Scarica l'immagine con autenticazione
+        $response = wp_remote_get($thumbnail_url, [
+            'headers' => [
+                'Authorization' => 'Bearer ' . $access_token
+            ],
+            'timeout' => 15
+        ]);
+        
+        if (is_wp_error($response)) {
+            status_header(500);
+            die('Error fetching thumbnail');
+        }
+        
+        $body = wp_remote_retrieve_body($response);
+        $content_type = wp_remote_retrieve_header($response, 'content-type');
+        
+        // Serve l'immagine
+        header('Content-Type: ' . ($content_type ?: 'image/jpeg'));
+        header('Cache-Control: public, max-age=3600');
+        echo $body;
+        die();
     }
     
     /**

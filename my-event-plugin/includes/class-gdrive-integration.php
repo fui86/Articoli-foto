@@ -61,6 +61,7 @@ class MEP_GDrive_Integration {
     
     /**
      * Ottieni lista foto con thumbnails per la griglia di selezione
+     * 🚀 USA GOOGLE DRIVE API DIRETTA - bypassa Use-your-Drive per evitare errori di cache
      * 
      * @param string $folder_id ID cartella Google Drive
      * @return array|WP_Error Array di foto con info e thumbnail
@@ -70,112 +71,93 @@ class MEP_GDrive_Integration {
             return new WP_Error('empty_folder_id', __('ID cartella vuoto', 'my-event-plugin'));
         }
         
+        MEP_Helpers::log_info("📁 Tentativo di accesso alla cartella: {$folder_id} (via Google Drive API diretta)");
+        
         try {
-            $folder = \TheLion\UseyourDrive\Client::instance()->get_folder($folder_id);
+            // 1. Verifica accesso alla cartella
+            $access_check = MEP_Google_Drive_API::verify_folder_access($folder_id);
             
-            if (empty($folder['contents'])) {
-                return new WP_Error('empty_folder', __('Cartella vuota o non accessibile', 'my-event-plugin'));
+            if (is_wp_error($access_check)) {
+                MEP_Helpers::log_error("❌ Verifica accesso fallita", $access_check->get_error_message());
+                return $access_check;
             }
             
-            $image_mimetypes = [
-                'image/jpeg',
-                'image/jpg',
-                'image/png',
-                'image/gif',
-                'image/webp',
-                'image/bmp'
-            ];
+            // 2. Ottieni lista file via Google Drive API diretta
+            $files = MEP_Google_Drive_API::list_files_in_folder($folder_id, 'image/');
             
+            if (is_wp_error($files)) {
+                MEP_Helpers::log_error("❌ Errore lista file", $files->get_error_message());
+                return $files;
+            }
+            
+            // 3. Se non ci sono foto
+            if (empty($files)) {
+                return new WP_Error('no_photos', __('Nessuna foto trovata nella cartella. Assicurati che la cartella contenga file immagine (JPG, PNG, GIF, WebP).', 'my-event-plugin'));
+            }
+            
+            // 4. Trasforma i file in formato compatibile con la UI
             $photos = [];
             
-            foreach ($folder['contents'] as $cached_node) {
-                // Verifica che sia un file (non una cartella)
-                if (!$cached_node->get_entry()->is_file()) {
-                    continue;
+            foreach ($files as $file) {
+                // Ottieni thumbnail URL
+                $thumbnail_url = MEP_Google_Drive_API::get_thumbnail_url($file['id'], 400);
+                
+                // Se non c'è thumbnail, usa l'icona
+                if (empty($thumbnail_url)) {
+                    $thumbnail_url = isset($file['iconLink']) ? $file['iconLink'] : '';
                 }
                 
-                $mimetype = $cached_node->get_entry()->get_mimetype();
-                
-                if (in_array($mimetype, $image_mimetypes)) {
-                    $entry = $cached_node->get_entry();
-                    
-                    // Ottieni thumbnail URL
-                    $thumbnail_url = $entry->get_thumbnail_with_size('medium');
-                    if (empty($thumbnail_url)) {
-                        // Fallback: usa l'icona o un placeholder
-                        $thumbnail_url = $entry->get_icon();
-                    }
-                    
-                    $photos[] = [
-                        'id' => $cached_node->get_id(),
-                        'name' => $entry->get_name(),
-                        'thumbnail' => $thumbnail_url,
-                        'size' => $entry->get_size(),
-                        'mimetype' => $mimetype
-                    ];
-                }
+                $photos[] = [
+                    'id' => $file['id'],
+                    'name' => $file['name'],
+                    'thumbnail' => $thumbnail_url,
+                    'size' => isset($file['size']) ? $file['size'] : 0,
+                    'mimetype' => isset($file['mimeType']) ? $file['mimeType'] : 'image/jpeg'
+                ];
             }
             
-            MEP_Helpers::log_info("Trovate " . count($photos) . " foto nella cartella {$folder_id}");
+            MEP_Helpers::log_info("✅ Trovate " . count($photos) . " foto nella cartella {$folder_id} (via API diretta)");
             
             return $photos;
             
-        } catch (Exception $e) {
-            MEP_Helpers::log_error("Errore nel recupero foto dalla cartella {$folder_id}", $e->getMessage());
-            return new WP_Error('api_error', $e->getMessage());
+        } catch (Throwable $e) {
+            MEP_Helpers::log_error("❌ Errore nel recupero foto dalla cartella {$folder_id}", [
+                'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'trace' => $e->getTraceAsString()
+            ]);
+            return new WP_Error('api_error', sprintf(
+                __('Errore API Google Drive: %s', 'my-event-plugin'),
+                $e->getMessage()
+            ));
         }
     }
     
     /**
      * Importa foto specifiche da Google Drive nella Media Library WordPress
+     * 🚀 USA GOOGLE DRIVE API DIRETTA - bypassa Use-your-Drive
      * 
      * @param array $photo_ids Array di ID foto da importare
+     * @param array $photo_names Array di nomi foto (opzionale)
      * @return array|WP_Error Array di attachment IDs o WP_Error
      */
-    public static function import_specific_photos($photo_ids) {
+    public static function import_specific_photos($photo_ids, $photo_names = []) {
         if (empty($photo_ids) || !is_array($photo_ids)) {
             return new WP_Error('empty_photo_ids', __('Lista foto vuota', 'my-event-plugin'));
         }
         
-        MEP_Helpers::log_info("Inizio import di " . count($photo_ids) . " foto selezionate");
+        MEP_Helpers::log_info("📥 Inizio import di " . count($photo_ids) . " foto selezionate (via API diretta)");
         
-        // Importa ogni foto usando l'API wrapper di Use-your-Drive
-        $attachment_ids = [];
-        $errors = [];
+        // Usa la nuova API diretta per importare
+        $attachment_ids = MEP_Google_Drive_API::import_files($photo_ids, $photo_names);
         
-        foreach ($photo_ids as $index => $image_id) {
-            try {
-                // ⭐ QUESTA È LA MAGIA: una riga = download + import completo!
-                $attachment_id = \TheLion\UseyourDrive\API::import($image_id);
-                
-                if (is_wp_error($attachment_id)) {
-                    $errors[] = $attachment_id->get_error_message();
-                    MEP_Helpers::log_error("Errore import foto {$image_id}", $attachment_id->get_error_message());
-                    continue;
-                }
-                
-                $attachment_ids[] = $attachment_id;
-                MEP_Helpers::log_info("Foto {$image_id} importata con attachment ID {$attachment_id}");
-                
-            } catch (Exception $e) {
-                $errors[] = $e->getMessage();
-                MEP_Helpers::log_error("Eccezione durante import foto {$image_id}", $e->getMessage());
-            }
+        if (is_wp_error($attachment_ids)) {
+            MEP_Helpers::log_error("❌ Errore import foto", $attachment_ids->get_error_message());
+            return $attachment_ids;
         }
         
-        // Verifica risultati
-        if (empty($attachment_ids)) {
-            return new WP_Error(
-                'import_failed',
-                __('Impossibile importare alcuna foto. Errori: ', 'my-event-plugin') . implode(', ', $errors)
-            );
-        }
-        
-        if (!empty($errors)) {
-            MEP_Helpers::log_error("Alcuni errori durante l'import", $errors);
-        }
-        
-        MEP_Helpers::log_info("Import completato: " . count($attachment_ids) . " foto importate");
+        MEP_Helpers::log_info("✅ Import completato: " . count($attachment_ids) . " foto importate (via API diretta)");
         
         return $attachment_ids;
     }
