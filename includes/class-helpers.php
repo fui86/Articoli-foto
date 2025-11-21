@@ -292,7 +292,6 @@ class MEP_Helpers {
     public static function validate_mime_type($mime_type) {
         $allowed_types = [
             'image/jpeg',
-            'image/jpg',
             'image/png',
             'image/gif',
             'image/webp',

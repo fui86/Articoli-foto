@@ -109,7 +109,7 @@ class MEP_Google_Drive_API {
             
             // Se non è l'ultimo tentativo, attendi prima di ritentare
             if ($attempt < $max_retries) {
-                $delay = $retry_delay * $attempt; // Exponential backoff
+                $delay = $retry_delay * pow(2, $attempt - 1); // Exponential backoff: 2, 4, 8...
                 MEP_Helpers::log_info("⏳ Attendo {$delay} secondi prima del prossimo tentativo...");
                 sleep($delay);
             }
@@ -338,7 +338,8 @@ class MEP_Google_Drive_API {
      * 
      * @param string $file_id ID file Google Drive
      * @param string $file_name Nome file
-     * @param array $file_metadata Metadata file (size, mimeType) per pre-validazione
+     * @param array $file_metadata Metadata file per pre-validazione (opzionale)
+     *                             Expected format: ['size' => int, 'mimeType' => string]
      * @return int|WP_Error Attachment ID o WP_Error
      */
     public static function download_and_import_file($file_id, $file_name, $file_metadata = []) {

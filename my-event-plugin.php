@@ -264,7 +264,7 @@ class My_Event_Plugin {
             $message = __('Evento creato con successo!', 'my-event-plugin');
             if ($partial_import) {
                 $message .= ' ' . sprintf(
-                    __('⚠️ Attenzione: solo %d su %d foto sono state importate.', 'my-event-plugin'),
+                    __('Attenzione: solo %d su %d foto sono state importate.', 'my-event-plugin'),
                     $result['total_imported'],
                     $result['total_requested']
                 );

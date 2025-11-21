@@ -107,7 +107,7 @@ class MEP_Post_Creator {
         
         // Log risultati import
         if ($partial_success) {
-            MEP_Helpers::log_error("⚠️ Import parziale: " . count($attachment_ids) . " foto importate, " . count($errors) . " fallite");
+            MEP_Helpers::log_error("Import parziale: " . count($attachment_ids) . " foto importate, " . count($errors) . " fallite");
             // Salva gli errori nei metadata per riferimento futuro
             update_post_meta($new_post_id, '_mep_import_errors', $errors);
             update_post_meta($new_post_id, '_mep_partial_import', true);
