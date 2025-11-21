@@ -257,6 +257,18 @@ class My_Event_Plugin {
             
             // Il risultato ora è un array con post_id, photo_urls, ecc.
             $post_id = $result['post_id'];
+            $partial_import = $result['partial_import'] ?? false;
+            $import_errors = $result['import_errors'] ?? [];
+            
+            // Prepara messaggio per l'utente
+            $message = __('Evento creato con successo!', 'my-event-plugin');
+            if ($partial_import) {
+                $message .= ' ' . sprintf(
+                    __('⚠️ Attenzione: solo %d su %d foto sono state importate.', 'my-event-plugin'),
+                    $result['total_imported'],
+                    $result['total_requested']
+                );
+            }
             
             wp_send_json_success([
                 'post_id' => $post_id,
@@ -264,10 +276,13 @@ class My_Event_Plugin {
                 'view_url' => get_permalink($post_id),
                 'photo_urls' => $result['photo_urls'],
                 'attachment_ids' => $result['attachment_ids'],
-                'featured_index' => $result['featured_index']
+                'featured_index' => $result['featured_index'],
+                'partial_import' => $partial_import,
+                'import_errors' => $import_errors,
+                'message' => $message
             ]);
             
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             wp_send_json_error(['message' => $e->getMessage()]);
         }
     }
@@ -584,13 +599,18 @@ class My_Event_Plugin {
         
         try {
             // Importa foto tramite API Google Drive
-            $attachment_ids = MEP_Google_Drive_API::import_files($photo_ids, $photo_names);
+            $import_result = MEP_Google_Drive_API::import_files($photo_ids, $photo_names);
             
-            if (is_wp_error($attachment_ids)) {
-                MEP_Helpers::log_error("❌ Errore import foto", $attachment_ids->get_error_message());
-                wp_send_json_error(['message' => $attachment_ids->get_error_message()]);
+            if (is_wp_error($import_result)) {
+                MEP_Helpers::log_error("❌ Errore import foto", $import_result->get_error_message());
+                wp_send_json_error(['message' => $import_result->get_error_message()]);
                 return;
             }
+            
+            // Gestisci risultato (potrebbe essere import parziale)
+            $attachment_ids = $import_result['attachment_ids'] ?? [];
+            $errors = $import_result['errors'] ?? [];
+            $partial_success = $import_result['partial_success'] ?? false;
             
             if (empty($attachment_ids)) {
                 wp_send_json_error(['message' => __('Nessuna foto è stata importata', 'my-event-plugin')]);
@@ -606,13 +626,24 @@ class My_Event_Plugin {
                 }
             }
             
-            MEP_Helpers::log_info("✅ Importate " . count($photo_urls) . " foto con successo");
+            $message = count($photo_urls) . ' foto importate';
+            if ($partial_success) {
+                $message .= sprintf(
+                    ' (⚠️ %d foto fallite)',
+                    count($errors)
+                );
+            }
+            
+            MEP_Helpers::log_info("✅ " . $message);
             
             wp_send_json_success([
                 'attachment_ids' => $attachment_ids,
                 'photo_urls' => $photo_urls,
                 'count' => count($photo_urls),
-                'folder_id' => $folder_id
+                'folder_id' => $folder_id,
+                'partial_import' => $partial_success,
+                'errors' => $errors,
+                'message' => $message
             ]);
             
         } catch (Throwable $e) {
@@ -730,6 +761,11 @@ register_activation_hook(__FILE__, function() {
     add_option('mep_auto_featured_image', 'yes');
     add_option('mep_gallery_responsive', 'yes');
     add_option('mep_min_photos', 4);
+    
+    // Nuove opzioni per error handling
+    add_option('mep_api_max_retries', 3);
+    add_option('mep_api_retry_delay', 2);
+    add_option('mep_max_file_size', 10 * 1024 * 1024); // 10MB default
 });
 
 /**

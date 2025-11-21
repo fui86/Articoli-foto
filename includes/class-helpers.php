@@ -72,7 +72,7 @@ class MEP_Helpers {
             
             return true;
             
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             return new WP_Error(
                 'api_error',
                 sprintf(__('Errore API: %s', 'my-event-plugin'), $e->getMessage())
@@ -101,7 +101,7 @@ class MEP_Helpers {
                 'path' => $folder['folder']->get_path('root')
             ];
             
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             return false;
         }
     }
@@ -258,5 +258,57 @@ class MEP_Helpers {
         $shortcode .= 'class="mep-gallery-responsive"]';
         
         return $shortcode;
+    }
+    
+    /**
+     * Valida dimensione file prima dell'import
+     * 
+     * @param int $size_bytes Dimensione file in bytes
+     * @return bool|WP_Error True se valido, WP_Error se troppo grande
+     */
+    public static function validate_file_size($size_bytes) {
+        $max_size = get_option('mep_max_file_size', 10 * 1024 * 1024); // Default 10MB
+        
+        if ($size_bytes > $max_size) {
+            return new WP_Error(
+                'file_too_large',
+                sprintf(
+                    __('File troppo grande: %s. Massimo consentito: %s', 'my-event-plugin'),
+                    size_format($size_bytes),
+                    size_format($max_size)
+                )
+            );
+        }
+        
+        return true;
+    }
+    
+    /**
+     * Valida formato file
+     * 
+     * @param string $mime_type MIME type del file
+     * @return bool|WP_Error True se valido, WP_Error se non supportato
+     */
+    public static function validate_mime_type($mime_type) {
+        $allowed_types = [
+            'image/jpeg',
+            'image/jpg',
+            'image/png',
+            'image/gif',
+            'image/webp',
+            'image/bmp'
+        ];
+        
+        if (!in_array($mime_type, $allowed_types)) {
+            return new WP_Error(
+                'invalid_mime_type',
+                sprintf(
+                    __('Tipo file non supportato: %s', 'my-event-plugin'),
+                    $mime_type
+                )
+            );
+        }
+        
+        return true;
     }
 }
