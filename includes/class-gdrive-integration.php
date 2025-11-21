@@ -53,7 +53,7 @@ class MEP_GDrive_Integration {
             
             return $image_ids;
             
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             MEP_Helpers::log_error("Errore nel recupero immagini dalla cartella {$folder_id}", $e->getMessage());
             return [];
         }
@@ -137,29 +137,41 @@ class MEP_GDrive_Integration {
     /**
      * Importa foto specifiche da Google Drive nella Media Library WordPress
      * 🚀 USA GOOGLE DRIVE API DIRETTA - bypassa Use-your-Drive
+     * Supporta import parziale con gestione errori migliorata
      * 
      * @param array $photo_ids Array di ID foto da importare
      * @param array $photo_names Array di nomi foto (opzionale)
-     * @return array|WP_Error Array di attachment IDs o WP_Error
+     * @param array $photo_metadata Array di metadata (size, mimeType) per pre-validazione
+     * @return array|WP_Error Array con attachment IDs e info errori, o WP_Error
      */
-    public static function import_specific_photos($photo_ids, $photo_names = []) {
+    public static function import_specific_photos($photo_ids, $photo_names = [], $photo_metadata = []) {
         if (empty($photo_ids) || !is_array($photo_ids)) {
             return new WP_Error('empty_photo_ids', __('Lista foto vuota', 'my-event-plugin'));
         }
         
         MEP_Helpers::log_info("📥 Inizio import di " . count($photo_ids) . " foto selezionate (via API diretta)");
         
-        // Usa la nuova API diretta per importare
-        $attachment_ids = MEP_Google_Drive_API::import_files($photo_ids, $photo_names);
+        // Usa la nuova API diretta per importare con supporto parziale
+        $result = MEP_Google_Drive_API::import_files($photo_ids, $photo_names, $photo_metadata);
         
-        if (is_wp_error($attachment_ids)) {
-            MEP_Helpers::log_error("❌ Errore import foto", $attachment_ids->get_error_message());
-            return $attachment_ids;
+        if (is_wp_error($result)) {
+            MEP_Helpers::log_error("❌ Errore import foto", $result->get_error_message());
+            return $result;
         }
         
-        MEP_Helpers::log_info("✅ Import completato: " . count($attachment_ids) . " foto importate (via API diretta)");
+        // Il risultato ora include più informazioni
+        $attachment_ids = $result['attachment_ids'];
+        $errors = $result['errors'] ?? [];
+        $partial_success = $result['partial_success'] ?? false;
         
-        return $attachment_ids;
+        if ($partial_success) {
+            MEP_Helpers::log_error("⚠️ Import parziale completato: " . count($attachment_ids) . " foto importate, " . count($errors) . " fallite");
+        } else {
+            MEP_Helpers::log_info("✅ Import completato: " . count($attachment_ids) . " foto importate (via API diretta)");
+        }
+        
+        // Restituisci il risultato completo per gestione errori upstream
+        return $result;
     }
     
     /**
@@ -241,7 +253,7 @@ class MEP_GDrive_Integration {
                 'has_enough_images' => $image_count >= get_option('mep_min_photos', 4)
             ];
             
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             MEP_Helpers::log_error("Errore recupero dettagli cartella {$folder_id}", $e->getMessage());
             return false;
         }
@@ -288,7 +300,7 @@ class MEP_GDrive_Integration {
         try {
             $folder = \TheLion\UseyourDrive\Client::instance()->get_folder($folder_id);
             return !empty($folder);
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             return false;
         }
     }
@@ -315,7 +327,7 @@ class MEP_GDrive_Integration {
             
             return false;
             
-        } catch (Exception $e) {
+        } catch (Throwable $e) {
             MEP_Helpers::log_error("Errore recupero account primario", $e->getMessage());
             return false;
         }

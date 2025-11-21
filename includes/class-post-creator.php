@@ -81,15 +81,39 @@ class MEP_Post_Creator {
         
         // 8. Importa le foto selezionate da Google Drive
         MEP_Helpers::log_info("Inizio import di " . count($selected_photo_ids) . " foto selezionate");
-        $attachment_ids = MEP_GDrive_Integration::import_specific_photos($selected_photo_ids);
+        $import_result = MEP_GDrive_Integration::import_specific_photos($selected_photo_ids);
         
-        if (is_wp_error($attachment_ids)) {
-            // Se fallisce l'import, elimina il post draft
+        if (is_wp_error($import_result)) {
+            // Se fallisce completamente l'import, elimina il post draft
             wp_delete_post($new_post_id, true);
-            return $attachment_ids;
+            MEP_Helpers::log_error("Import completamente fallito, post eliminato");
+            return $import_result;
         }
         
-        MEP_Helpers::log_info("Foto importate: " . count($attachment_ids));
+        // Gestisci import parziale
+        $attachment_ids = $import_result['attachment_ids'] ?? [];
+        $errors = $import_result['errors'] ?? [];
+        $partial_success = $import_result['partial_success'] ?? false;
+        
+        if (empty($attachment_ids)) {
+            // Nessuna foto importata
+            wp_delete_post($new_post_id, true);
+            MEP_Helpers::log_error("Nessuna foto importata, post eliminato");
+            return new WP_Error(
+                'no_photos_imported',
+                __('Impossibile importare alcuna foto', 'my-event-plugin')
+            );
+        }
+        
+        // Log risultati import
+        if ($partial_success) {
+            MEP_Helpers::log_error("Import parziale: " . count($attachment_ids) . " foto importate, " . count($errors) . " fallite");
+            // Salva gli errori nei metadata per riferimento futuro
+            update_post_meta($new_post_id, '_mep_import_errors', $errors);
+            update_post_meta($new_post_id, '_mep_partial_import', true);
+        } else {
+            MEP_Helpers::log_info("Foto importate: " . count($attachment_ids));
+        }
         
         // 9. Imposta featured image (quella scelta dall'utente)
         if (!empty($attachment_ids[$featured_index])) {
@@ -147,7 +171,11 @@ class MEP_Post_Creator {
             'post_id' => $new_post_id,
             'attachment_ids' => $attachment_ids,
             'photo_urls' => $photo_urls,
-            'featured_index' => $featured_index
+            'featured_index' => $featured_index,
+            'partial_import' => $partial_success,
+            'import_errors' => $errors,
+            'total_requested' => count($selected_photo_ids),
+            'total_imported' => count($attachment_ids)
         ];
     }
     
