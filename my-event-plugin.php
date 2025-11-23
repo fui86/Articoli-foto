@@ -636,42 +636,70 @@ class My_Event_Plugin {
     public function handle_proxy_thumbnail() {
         // Verifica nonce
         check_ajax_referer('mep_nonce', 'nonce');
-        
+
         // Ottieni URL miniatura
         $thumbnail_url = isset($_GET['url']) ? $_GET['url'] : '';
-        
+
         if (empty($thumbnail_url)) {
+            MEP_Helpers::log_error("❌ Proxy Thumbnail: URL mancante");
             status_header(400);
             die('Missing URL');
         }
-        
+
+        MEP_Helpers::log_info("🖼️ Proxy Thumbnail richiesto per: " . substr($thumbnail_url, 0, 100));
+
         // Ottieni access token
         $access_token = MEP_Google_OAuth::get_access_token();
-        
+
         if (is_wp_error($access_token)) {
+            MEP_Helpers::log_error("❌ Proxy Thumbnail: Token non valido", $access_token->get_error_message());
             status_header(403);
-            die('Unauthorized');
+            die('Unauthorized: ' . $access_token->get_error_message());
         }
-        
+
         // Scarica l'immagine con autenticazione
         $response = wp_remote_get($thumbnail_url, [
             'headers' => [
                 'Authorization' => 'Bearer ' . $access_token
             ],
-            'timeout' => 15
+            'timeout' => 30, // 🔧 Aumentato timeout a 30s
+            'sslverify' => false // Per sviluppo locale
         ]);
-        
+
         if (is_wp_error($response)) {
+            MEP_Helpers::log_error("❌ Proxy Thumbnail: Errore HTTP", $response->get_error_message());
             status_header(500);
-            die('Error fetching thumbnail');
+            die('Error fetching thumbnail: ' . $response->get_error_message());
         }
-        
+
+        $status_code = wp_remote_retrieve_response_code($response);
+
+        if ($status_code !== 200) {
+            $body = wp_remote_retrieve_body($response);
+            MEP_Helpers::log_error("❌ Proxy Thumbnail: Risposta non OK", [
+                'status' => $status_code,
+                'body' => substr($body, 0, 200)
+            ]);
+            status_header($status_code);
+            die('HTTP Error: ' . $status_code);
+        }
+
         $body = wp_remote_retrieve_body($response);
         $content_type = wp_remote_retrieve_header($response, 'content-type');
-        
+
+        if (empty($body)) {
+            MEP_Helpers::log_error("❌ Proxy Thumbnail: Corpo risposta vuoto");
+            status_header(500);
+            die('Empty response body');
+        }
+
+        MEP_Helpers::log_info("✅ Proxy Thumbnail: Servita miniatura (" . strlen($body) . " bytes)");
+
         // Serve l'immagine
         header('Content-Type: ' . ($content_type ?: 'image/jpeg'));
+        header('Content-Length: ' . strlen($body));
         header('Cache-Control: public, max-age=3600');
+        header('Access-Control-Allow-Origin: *'); // Permetti CORS
         echo $body;
         die();
     }

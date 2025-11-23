@@ -97,16 +97,22 @@ class MEP_GDrive_Integration {
             
             // 4. Trasforma i file in formato compatibile con la UI
             $photos = [];
-            
+
             foreach ($files as $file) {
-                // Ottieni thumbnail URL
-                $thumbnail_url = MEP_Google_Drive_API::get_thumbnail_url($file['id'], 400);
-                
+                // 🔧 FIX: Usa thumbnailLink fornito dall'API di Google Drive
+                // Questo link è già autenticato e pronto per l'uso
+                $thumbnail_url = isset($file['thumbnailLink']) ? $file['thumbnailLink'] : '';
+
                 // Se non c'è thumbnail, usa l'icona
                 if (empty($thumbnail_url)) {
                     $thumbnail_url = isset($file['iconLink']) ? $file['iconLink'] : '';
                 }
-                
+
+                // Se ancora non c'è, costruisci URL manuale come fallback
+                if (empty($thumbnail_url)) {
+                    $thumbnail_url = MEP_Google_Drive_API::get_thumbnail_url($file['id'], 400);
+                }
+
                 $photos[] = [
                     'id' => $file['id'],
                     'name' => $file['name'],
