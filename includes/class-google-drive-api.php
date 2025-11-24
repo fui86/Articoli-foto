@@ -258,108 +258,151 @@ class MEP_Google_Drive_API {
     
     /**
      * Scarica un file da Google Drive e importalo in WordPress Media Library
-     * 
+     *
      * @param string $file_id ID file Google Drive
      * @param string $file_name Nome file
      * @return int|WP_Error Attachment ID o WP_Error
      */
     public static function download_and_import_file($file_id, $file_name) {
         if (empty($file_id)) {
+            MEP_Helpers::log_error("❌ Import: ID file vuoto");
             return new WP_Error('empty_file_id', __('ID file vuoto', 'my-event-plugin'));
         }
-        
+
         $token = self::get_access_token();
         if (is_wp_error($token)) {
+            MEP_Helpers::log_error("❌ Import: Token non valido", $token->get_error_message());
             return $token;
         }
-        
-        MEP_Helpers::log_info("Download file: {$file_name} ({$file_id})");
-        
+
+        MEP_Helpers::log_info("📥 Download file: {$file_name} ({$file_id})");
+
         try {
             // URL per scaricare il file
             $url = self::API_BASE_URL . '/files/' . $file_id . '?alt=media';
-            
+
+            MEP_Helpers::log_info("🌐 Download da: " . $url);
+
             // Scarica il file
             $response = wp_remote_get($url, [
                 'headers' => [
                     'Authorization' => 'Bearer ' . $token
                 ],
-                'timeout' => 60 // Timeout più lungo per file grandi
+                'timeout' => 120, // 🔧 Timeout aumentato a 120s per file grandi
+                'sslverify' => false
             ]);
-            
+
             if (is_wp_error($response)) {
+                MEP_Helpers::log_error("❌ Errore download HTTP", $response->get_error_message());
                 return $response;
             }
-            
+
             $status_code = wp_remote_retrieve_response_code($response);
-            
+
             if ($status_code !== 200) {
                 $body = wp_remote_retrieve_body($response);
-                MEP_Helpers::log_error("Errore download file", [
+                MEP_Helpers::log_error("❌ Errore download file", [
                     'status' => $status_code,
-                    'body' => $body
+                    'body' => substr($body, 0, 200),
+                    'file_id' => $file_id
                 ]);
                 return new WP_Error('download_failed', sprintf(
-                    __('Download fallito: %d', 'my-event-plugin'),
-                    $status_code
+                    __('Download fallito (HTTP %d): %s', 'my-event-plugin'),
+                    $status_code,
+                    substr($body, 0, 100)
                 ));
             }
-            
+
             // Ottieni il contenuto del file
             $file_content = wp_remote_retrieve_body($response);
-            
+
             if (empty($file_content)) {
+                MEP_Helpers::log_error("❌ File scaricato vuoto", ['file_id' => $file_id]);
                 return new WP_Error('empty_file', __('File vuoto', 'my-event-plugin'));
             }
-            
+
+            MEP_Helpers::log_info("✅ File scaricato: " . strlen($file_content) . " bytes");
+
             // Importa in WordPress Media Library
             $upload_dir = wp_upload_dir();
-            $file_path = $upload_dir['path'] . '/' . sanitize_file_name($file_name);
-            
+
+            if (!empty($upload_dir['error'])) {
+                MEP_Helpers::log_error("❌ Errore upload directory", $upload_dir['error']);
+                return new WP_Error('upload_dir_error', $upload_dir['error']);
+            }
+
+            // 🔧 FIX: Usa wp_unique_filename per evitare conflitti di nome
+            $sanitized_name = sanitize_file_name($file_name);
+            $unique_filename = wp_unique_filename($upload_dir['path'], $sanitized_name);
+            $file_path = $upload_dir['path'] . '/' . $unique_filename;
+
+            if ($unique_filename !== $sanitized_name) {
+                MEP_Helpers::log_info("⚠️ File rinominato: {$sanitized_name} -> {$unique_filename}");
+            }
+
+            MEP_Helpers::log_info("💾 Salvataggio in: " . $file_path);
+
             // Salva file temporaneo
             $saved = file_put_contents($file_path, $file_content);
-            
+
             if ($saved === false) {
-                return new WP_Error('save_failed', __('Impossibile salvare il file', 'my-event-plugin'));
+                MEP_Helpers::log_error("❌ Impossibile salvare file su disco", ['path' => $file_path]);
+                return new WP_Error('save_failed', __('Impossibile salvare il file su disco', 'my-event-plugin'));
             }
-            
+
+            MEP_Helpers::log_info("✅ File salvato su disco: " . $saved . " bytes");
+
             // Crea attachment in WordPress
             $file_type = wp_check_filetype($file_name);
-            
+
             $attachment = [
                 'post_mime_type' => $file_type['type'],
                 'post_title' => sanitize_file_name(pathinfo($file_name, PATHINFO_FILENAME)),
                 'post_content' => '',
                 'post_status' => 'inherit'
             ];
-            
+
+            MEP_Helpers::log_info("🎨 Creazione attachment WordPress");
+
             $attachment_id = wp_insert_attachment($attachment, $file_path);
-            
+
             if (is_wp_error($attachment_id)) {
+                MEP_Helpers::log_error("❌ Errore creazione attachment", $attachment_id->get_error_message());
                 @unlink($file_path); // Rimuovi file temporaneo
                 return $attachment_id;
             }
-            
+
+            MEP_Helpers::log_info("✅ Attachment creato ID: {$attachment_id}");
+
             // Genera metadata
             require_once(ABSPATH . 'wp-admin/includes/image.php');
             $attach_data = wp_generate_attachment_metadata($attachment_id, $file_path);
             wp_update_attachment_metadata($attachment_id, $attach_data);
-            
+
+            MEP_Helpers::log_info("✅ Metadata generati per attachment {$attachment_id}");
+
             // Aggiungi metadata custom
             update_post_meta($attachment_id, '_imported_from_gdrive', true);
             update_post_meta($attachment_id, '_gdrive_file_id', $file_id);
             update_post_meta($attachment_id, '_import_date', current_time('mysql'));
-            
-            MEP_Helpers::log_info("File importato con attachment ID: {$attachment_id}");
-            
+
+            MEP_Helpers::log_info("🎉 File importato con successo! Attachment ID: {$attachment_id}");
+
             return $attachment_id;
-            
+
         } catch (Throwable $e) {
-            MEP_Helpers::log_error("Eccezione download_and_import_file", [
+            MEP_Helpers::log_error("💥 Eccezione download_and_import_file", [
                 'message' => $e->getMessage(),
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
                 'trace' => $e->getTraceAsString()
             ]);
-            return new WP_Error('exception', $e->getMessage());
+            return new WP_Error('exception', sprintf(
+                __('Errore: %s (file: %s linea: %d)', 'my-event-plugin'),
+                $e->getMessage(),
+                basename($e->getFile()),
+                $e->getLine()
+            ));
         }
     }
     
