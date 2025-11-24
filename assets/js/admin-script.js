@@ -570,15 +570,24 @@
         });
         
         // ===== Click Importa Foto in WordPress =====
-        $(document).on('click', '#mep-import-photos-btn', function() {
+        $(document).on('click', '#mep-import-photos-btn', function(e) {
+            console.log('🖱️ Click su bottone Importa Foto rilevato!');
+            console.log('📊 Foto selezionate:', PhotoSelector.selectedPhotos);
+            
             if (PhotoSelector.selectedPhotos.length === 0) {
+                console.warn('⚠️ Nessuna foto selezionata');
                 alert('Seleziona almeno una foto!');
                 return;
             }
             
+            console.log(`📸 Richiesta conferma per importare ${PhotoSelector.selectedPhotos.length} foto`);
+            
             if (!confirm(`Vuoi importare ${PhotoSelector.selectedPhotos.length} foto nella Media Library di WordPress?`)) {
+                console.log('❌ Utente ha annullato l\'importazione');
                 return;
             }
+            
+            console.log('✅ Conferma ricevuta, inizio importazione...');
             
             const $btn = $(this);
             const originalText = $btn.html();
@@ -595,6 +604,15 @@
             const folderId = $('#event_folder_id').val();
             
             // AJAX
+            console.log('🌐 Invio richiesta AJAX...', {
+                url: mepData.ajax_url,
+                action: 'mep_import_photos_only',
+                photo_count: photoIds.length,
+                photo_ids: photoIds,
+                photo_names: photoNames,
+                folder_id: folderId
+            });
+            
             $.ajax({
                 url: mepData.ajax_url,
                 type: 'POST',
