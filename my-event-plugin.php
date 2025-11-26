@@ -565,13 +565,19 @@ class My_Event_Plugin {
         check_ajax_referer('mep_nonce', 'nonce');
         
         MEP_Helpers::log_info("📸 AJAX: handle_import_photos_only chiamato");
+        MEP_Helpers::log_info("📊 POST data: " . print_r($_POST, true));
         
         // Ottieni dati
         $photo_ids_string = isset($_POST['photo_ids']) ? sanitize_text_field($_POST['photo_ids']) : '';
         $photo_names_string = isset($_POST['photo_names']) ? $_POST['photo_names'] : '';
         $folder_id = isset($_POST['folder_id']) ? sanitize_text_field($_POST['folder_id']) : '';
         
+        MEP_Helpers::log_info("📸 Photo IDs string: " . $photo_ids_string);
+        MEP_Helpers::log_info("📸 Photo names string: " . $photo_names_string);
+        MEP_Helpers::log_info("📁 Folder ID: " . $folder_id);
+        
         if (empty($photo_ids_string)) {
+            MEP_Helpers::log_error("❌ Photo IDs string è vuoto!");
             wp_send_json_error(['message' => __('Nessuna foto selezionata', 'my-event-plugin')]);
             return;
         }
@@ -581,8 +587,21 @@ class My_Event_Plugin {
         $photo_names = !empty($photo_names_string) ? explode('|||', $photo_names_string) : [];
         
         MEP_Helpers::log_info("📸 Importazione " . count($photo_ids) . " foto");
+        MEP_Helpers::log_info("📸 Photo IDs: " . print_r($photo_ids, true));
+        MEP_Helpers::log_info("📸 Photo names: " . print_r($photo_names, true));
         
         try {
+            // Verifica autorizzazione OAuth prima di provare l'import
+            if (!MEP_Google_OAuth::is_authorized()) {
+                MEP_Helpers::log_error("❌ OAuth non autorizzato");
+                wp_send_json_error([
+                    'message' => __('Google Drive non è autorizzato. Vai nelle Impostazioni per configurare OAuth.', 'my-event-plugin')
+                ]);
+                return;
+            }
+            
+            MEP_Helpers::log_info("✅ OAuth verificato, inizio import...");
+            
             // Importa foto tramite API Google Drive
             $attachment_ids = MEP_Google_Drive_API::import_files($photo_ids, $photo_names);
             
