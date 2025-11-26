@@ -29,7 +29,14 @@
             descCounter: $('.desc-counter')
         };
         
-        // ===== Helper: Get AJAX Error Message =====
+        /**
+         * Get a user-friendly error message from AJAX error response
+         * @param {XMLHttpRequest} xhr - The XMLHttpRequest object
+         * @param {string} status - The status text (e.g., 'timeout', 'error')
+         * @param {string} error - The error message from jQuery AJAX
+         * @param {string} [defaultMsg] - Default message if no specific error is detected
+         * @returns {string} A user-friendly error message in Italian
+         */
         function getAjaxErrorMessage(xhr, status, error, defaultMsg) {
             if (xhr.status === 403) {
                 return 'Errore 403: Accesso negato. Verifica di essere autenticato e riprova.';
