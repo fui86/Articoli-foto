@@ -29,6 +29,27 @@
             descCounter: $('.desc-counter')
         };
         
+        /**
+         * Get a user-friendly error message from AJAX error response
+         * @param {XMLHttpRequest} xhr - The XMLHttpRequest object
+         * @param {string} status - The status text (e.g., 'timeout', 'error')
+         * @param {string} error - The error message from jQuery AJAX
+         * @param {string} [defaultMsg] - Default message if no specific error is detected
+         * @returns {string} A user-friendly error message in Italian
+         */
+        function getAjaxErrorMessage(xhr, status, error, defaultMsg) {
+            if (xhr.status === 403) {
+                return 'Errore 403: Accesso negato. Verifica di essere autenticato e riprova.';
+            } else if (xhr.status === 0) {
+                return 'Errore di rete. Verifica la connessione internet.';
+            } else if (status === 'timeout') {
+                return 'Timeout: l\'operazione ha richiesto troppo tempo. Riprova.';
+            } else if (xhr.status) {
+                return 'Errore ' + xhr.status + ': ' + error;
+            }
+            return defaultMsg || 'Errore di connessione';
+        }
+        
         // ===== Auto-popolamento Titolo SEO =====
         $('#event_title').on('input', function() {
             if (MEP.seoTitle.val() === '') {
@@ -598,6 +619,7 @@
             $.ajax({
                 url: mepData.ajax_url,
                 type: 'POST',
+                timeout: 60000, // 60 secondi per evitare timeout durante importazione foto
                 data: {
                     action: 'mep_import_photos_only',
                     nonce: mepData.nonce,
@@ -639,7 +661,7 @@
                 },
                 error: function(xhr, status, error) {
                     console.error('❌ Errore AJAX importazione:', {xhr, status, error});
-                    alert('❌ Errore di connessione durante l\'importazione');
+                    alert('❌ ' + getAjaxErrorMessage(xhr, status, error, 'Errore di connessione durante l\'importazione'));
                     $btn.prop('disabled', false).html(originalText);
                 }
             });
@@ -675,7 +697,8 @@
             $.ajax({
                 url: mepData.ajax_url,
                 type: 'POST',
-                data: MEP.form.serialize() + '&action=mep_process_event_creation',
+                timeout: 60000, // 60 secondi per evitare timeout durante importazione foto
+                data: MEP.form.serialize() + '&action=mep_process_event_creation&nonce=' + mepData.nonce,
                 success: function(response) {
                     console.log('✅ Risposta creazione:', response);
                     
@@ -732,7 +755,7 @@
                     console.error('❌ Errore submit:', {xhr, status, error});
                     
                     MEP.statusMsg
-                        .html('<div style="background: #f8d7da; color: #721c24; padding: 15px; border-radius: 4px;">❌ Errore di connessione</div>')
+                        .html('<div style="background: #f8d7da; color: #721c24; padding: 15px; border-radius: 4px;">❌ ' + getAjaxErrorMessage(xhr, status, error) + '</div>')
                         .slideDown();
                     
                     MEP.submitBtn.prop('disabled', false).text('Crea Evento');
