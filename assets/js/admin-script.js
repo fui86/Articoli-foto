@@ -29,6 +29,20 @@
             descCounter: $('.desc-counter')
         };
         
+        // ===== Helper: Get AJAX Error Message =====
+        function getAjaxErrorMessage(xhr, status, error, defaultMsg) {
+            if (xhr.status === 403) {
+                return 'Errore 403: Accesso negato. Verifica di essere autenticato e riprova.';
+            } else if (xhr.status === 0) {
+                return 'Errore di rete. Verifica la connessione internet.';
+            } else if (status === 'timeout') {
+                return 'Timeout: l\'operazione ha richiesto troppo tempo. Riprova.';
+            } else if (xhr.status) {
+                return 'Errore ' + xhr.status + ': ' + error;
+            }
+            return defaultMsg || 'Errore di connessione';
+        }
+        
         // ===== Auto-popolamento Titolo SEO =====
         $('#event_title').on('input', function() {
             if (MEP.seoTitle.val() === '') {
@@ -640,21 +654,7 @@
                 },
                 error: function(xhr, status, error) {
                     console.error('❌ Errore AJAX importazione:', {xhr, status, error});
-                    
-                    let errorMessage = 'Errore di connessione durante l\'importazione';
-                    
-                    // Gestione errore 403 (Forbidden)
-                    if (xhr.status === 403) {
-                        errorMessage = 'Errore 403: Accesso negato. Verifica di essere autenticato e riprova.';
-                    } else if (xhr.status === 0) {
-                        errorMessage = 'Errore di rete. Verifica la connessione internet.';
-                    } else if (status === 'timeout') {
-                        errorMessage = 'Timeout: l\'importazione ha richiesto troppo tempo. Riprova con meno foto.';
-                    } else if (xhr.status) {
-                        errorMessage = 'Errore ' + xhr.status + ': ' + error;
-                    }
-                    
-                    alert('❌ ' + errorMessage);
+                    alert('❌ ' + getAjaxErrorMessage(xhr, status, error, 'Errore di connessione durante l\'importazione'));
                     $btn.prop('disabled', false).html(originalText);
                 }
             });
@@ -747,21 +747,8 @@
                 error: function(xhr, status, error) {
                     console.error('❌ Errore submit:', {xhr, status, error});
                     
-                    let errorMessage = 'Errore di connessione';
-                    
-                    // Gestione errore 403 (Forbidden)
-                    if (xhr.status === 403) {
-                        errorMessage = 'Errore 403: Accesso negato. Verifica di essere autenticato e riprova.';
-                    } else if (xhr.status === 0) {
-                        errorMessage = 'Errore di rete. Verifica la connessione internet.';
-                    } else if (status === 'timeout') {
-                        errorMessage = 'Timeout: l\'operazione ha richiesto troppo tempo. Riprova.';
-                    } else if (xhr.status) {
-                        errorMessage = 'Errore ' + xhr.status + ': ' + error;
-                    }
-                    
                     MEP.statusMsg
-                        .html('<div style="background: #f8d7da; color: #721c24; padding: 15px; border-radius: 4px;">❌ ' + errorMessage + '</div>')
+                        .html('<div style="background: #f8d7da; color: #721c24; padding: 15px; border-radius: 4px;">❌ ' + getAjaxErrorMessage(xhr, status, error) + '</div>')
                         .slideDown();
                     
                     MEP.submitBtn.prop('disabled', false).text('Crea Evento');
