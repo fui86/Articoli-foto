@@ -231,7 +231,7 @@ class My_Event_Plugin {
      * Handler AJAX per creare l'evento
      */
     public function handle_event_creation() {
-        check_ajax_referer('mep_nonce', 'nonce');
+        check_ajax_referer('mep_nonce', 'mep_nonce_field');
         
         if (!current_user_can('publish_posts')) {
             wp_send_json_error(['message' => __('Permessi insufficienti', 'my-event-plugin')]);
