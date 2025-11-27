@@ -21,8 +21,24 @@ class MEP_Helpers {
             );
         }
         
+        // Verifica che la classe Accounts esista
+        if (!class_exists('TheLion\UseyourDrive\Accounts')) {
+            return new WP_Error(
+                'class_missing',
+                __('Versione di Use-your-Drive non compatibile.', 'my-event-plugin')
+            );
+        }
+        
         // Verifica che ci siano account connessi
-        $accounts = \TheLion\UseyourDrive\Accounts::instance()->list_accounts();
+        try {
+            $accounts = \TheLion\UseyourDrive\Accounts::instance()->list_accounts();
+        } catch (Exception $e) {
+            return new WP_Error(
+                'accounts_error',
+                __('Errore nel recupero degli account Google Drive.', 'my-event-plugin')
+            );
+        }
+        
         if (empty($accounts)) {
             return new WP_Error(
                 'no_accounts',
