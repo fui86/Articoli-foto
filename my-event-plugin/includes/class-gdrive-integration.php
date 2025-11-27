@@ -8,6 +8,16 @@ defined('ABSPATH') || exit;
 class MEP_GDrive_Integration {
     
     /**
+     * Verifica se Use-your-Drive è disponibile e pronto
+     * 
+     * @return bool
+     */
+    public static function is_useyourdrive_available() {
+        return class_exists('TheLion\UseyourDrive\Client') 
+            && class_exists('TheLion\UseyourDrive\API');
+    }
+    
+    /**
      * Ottieni lista di ID immagini da una cartella Google Drive
      * 
      * @param string $folder_id ID cartella Google Drive
@@ -15,6 +25,11 @@ class MEP_GDrive_Integration {
      */
     public static function get_image_ids_from_folder($folder_id) {
         if (empty($folder_id)) {
+            return [];
+        }
+        
+        if (!self::is_useyourdrive_available()) {
+            MEP_Helpers::log_error("Use-your-Drive non disponibile");
             return [];
         }
         
@@ -68,6 +83,10 @@ class MEP_GDrive_Integration {
     public static function get_photos_list_with_thumbnails($folder_id) {
         if (empty($folder_id)) {
             return new WP_Error('empty_folder_id', __('ID cartella vuoto', 'my-event-plugin'));
+        }
+        
+        if (!self::is_useyourdrive_available()) {
+            return new WP_Error('useyourdrive_missing', __('Il plugin Use-your-Drive non è disponibile', 'my-event-plugin'));
         }
         
         try {
@@ -135,6 +154,10 @@ class MEP_GDrive_Integration {
     public static function import_specific_photos($photo_ids) {
         if (empty($photo_ids) || !is_array($photo_ids)) {
             return new WP_Error('empty_photo_ids', __('Lista foto vuota', 'my-event-plugin'));
+        }
+        
+        if (!self::is_useyourdrive_available()) {
+            return new WP_Error('useyourdrive_missing', __('Il plugin Use-your-Drive non è disponibile. Installalo e configuralo.', 'my-event-plugin'));
         }
         
         MEP_Helpers::log_info("Inizio import di " . count($photo_ids) . " foto selezionate");
@@ -240,6 +263,10 @@ class MEP_GDrive_Integration {
      * @return array|false
      */
     public static function get_folder_details($folder_id) {
+        if (!self::is_useyourdrive_available()) {
+            return false;
+        }
+        
         try {
             $folder = \TheLion\UseyourDrive\Client::instance()->get_folder($folder_id);
             
@@ -303,6 +330,10 @@ class MEP_GDrive_Integration {
      * @return bool
      */
     public static function is_folder_accessible($folder_id) {
+        if (!self::is_useyourdrive_available()) {
+            return false;
+        }
+        
         try {
             $folder = \TheLion\UseyourDrive\Client::instance()->get_folder($folder_id);
             return !empty($folder);
@@ -317,6 +348,10 @@ class MEP_GDrive_Integration {
      * @return object|false
      */
     public static function get_primary_account() {
+        if (!class_exists('TheLion\UseyourDrive\Accounts')) {
+            return false;
+        }
+        
         try {
             $accounts = \TheLion\UseyourDrive\Accounts::instance()->list_accounts();
             
