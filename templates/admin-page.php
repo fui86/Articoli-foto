@@ -154,6 +154,56 @@ defined('ABSPATH') || exit;
                             <!-- Container per i link delle foto importate -->
                             <div id="mep-imported-links-container" class="mep-imported-links" style="display:none;"></div>
                             
+                            <!-- 🤖 Box Prompt ChatGPT -->
+                            <div id="mep-chatgpt-prompt-section" class="mep-chatgpt-prompt-section" style="display:none;">
+                                <div style="background: linear-gradient(135deg, #10a37f 0%, #1a7f64 100%); color: white; padding: 20px; border-radius: 10px; margin-top: 20px;">
+                                    <h3 style="margin: 0 0 15px 0; color: white; display: flex; align-items: center; gap: 10px;">
+                                        <span style="font-size: 24px;">🤖</span>
+                                        <?php _e('Prompt per ChatGPT', 'my-event-plugin'); ?>
+                                    </h3>
+                                    <p style="margin: 0 0 15px 0; opacity: 0.95; font-size: 14px;">
+                                        <?php _e('Copia questo prompt e incollalo su ChatGPT per farti scrivere l\'articolo in HTML:', 'my-event-plugin'); ?>
+                                    </p>
+                                    <div style="position: relative;">
+                                        <textarea id="mep-chatgpt-prompt-text" 
+                                                  readonly 
+                                                  style="width: 100%; 
+                                                         min-height: 200px; 
+                                                         padding: 15px; 
+                                                         border: 2px solid rgba(255,255,255,0.3); 
+                                                         border-radius: 8px; 
+                                                         background: rgba(0,0,0,0.2); 
+                                                         color: white; 
+                                                         font-family: monospace; 
+                                                         font-size: 13px; 
+                                                         line-height: 1.6;
+                                                         resize: vertical;"></textarea>
+                                        <button type="button" 
+                                                id="mep-copy-prompt-btn" 
+                                                style="position: absolute; 
+                                                       top: 10px; 
+                                                       right: 10px; 
+                                                       background: white; 
+                                                       color: #10a37f; 
+                                                       border: none; 
+                                                       padding: 8px 16px; 
+                                                       border-radius: 6px; 
+                                                       font-weight: 600; 
+                                                       cursor: pointer;
+                                                       display: flex;
+                                                       align-items: center;
+                                                       gap: 6px;
+                                                       transition: all 0.2s ease;">
+                                            <span class="dashicons dashicons-clipboard" style="font-size: 16px;"></span>
+                                            <?php _e('Copia', 'my-event-plugin'); ?>
+                                        </button>
+                                    </div>
+                                    <p style="margin: 15px 0 0 0; font-size: 12px; opacity: 0.8;">
+                                        💡 <?php _e('Il prompt include il titolo e i link delle foto (esclusa la copertina). Incollalo su ChatGPT per ottenere l\'HTML dell\'articolo!', 'my-event-plugin'); ?>
+                                    </p>
+                                </div>
+                            </div>
+                            
                         </div>
                         
                         <!-- Campo nascosto con gli ID delle foto selezionate -->
