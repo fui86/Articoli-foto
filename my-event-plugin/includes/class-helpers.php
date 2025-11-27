@@ -76,6 +76,14 @@ class MEP_Helpers {
             return new WP_Error('empty_id', __('ID cartella vuoto', 'my-event-plugin'));
         }
         
+        // Verifica che Use-your-Drive sia disponibile
+        if (!class_exists('TheLion\UseyourDrive\Client')) {
+            return new WP_Error(
+                'useyourdrive_missing',
+                __('Il plugin Use-your-Drive non è disponibile. Installalo e configuralo.', 'my-event-plugin')
+            );
+        }
+        
         try {
             $folder = \TheLion\UseyourDrive\Client::instance()->get_folder($folder_id);
             
@@ -103,6 +111,11 @@ class MEP_Helpers {
      * @return array|false
      */
     public static function get_folder_info($folder_id) {
+        // Verifica che Use-your-Drive sia disponibile
+        if (!class_exists('TheLion\UseyourDrive\Client')) {
+            return false;
+        }
+        
         try {
             $folder = \TheLion\UseyourDrive\Client::instance()->get_folder($folder_id);
             
