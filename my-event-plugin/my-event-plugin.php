@@ -231,21 +231,29 @@ class My_Event_Plugin {
      * Handler AJAX per creare l'evento
      */
     public function handle_event_creation() {
-        check_ajax_referer('mep_nonce', 'mep_nonce_field');
-        
-        if (!current_user_can('publish_posts')) {
-            wp_send_json_error(['message' => __('Permessi insufficienti', 'my-event-plugin')]);
-        }
-        
-        // Valida template ID - usa get_template_post_id() per leggere dalle opzioni
-        $template_id = $this->get_template_post_id();
-        if (empty($template_id) || $template_id === 0) {
-            wp_send_json_error([
-                'message' => __('ID template post non configurato! Vai in Impostazioni.', 'my-event-plugin')
-            ]);
-        }
-        
+        // Abilita gestione errori per catturare tutti gli errori
         try {
+            check_ajax_referer('mep_nonce', 'mep_nonce_field');
+            
+            if (!current_user_can('publish_posts')) {
+                wp_send_json_error(['message' => __('Permessi insufficienti', 'my-event-plugin')]);
+            }
+            
+            // Verifica prima se Use-your-Drive è disponibile
+            if (!class_exists('TheLion\UseyourDrive\Client')) {
+                wp_send_json_error([
+                    'message' => __('Il plugin Use-your-Drive non è disponibile o non è stato caricato correttamente. Verifica che sia attivo e ricarica la pagina.', 'my-event-plugin')
+                ]);
+            }
+            
+            // Valida template ID - usa get_template_post_id() per leggere dalle opzioni
+            $template_id = $this->get_template_post_id();
+            if (empty($template_id) || $template_id === 0) {
+                wp_send_json_error([
+                    'message' => __('ID template post non configurato! Vai in Impostazioni.', 'my-event-plugin')
+                ]);
+            }
+            
             $creator = new MEP_Post_Creator($template_id);
             $result = $creator->create_event_post($_POST);
             
@@ -266,7 +274,10 @@ class My_Event_Plugin {
             ]);
             
         } catch (Exception $e) {
-            wp_send_json_error(['message' => $e->getMessage()]);
+            wp_send_json_error(['message' => 'Errore: ' . $e->getMessage()]);
+        } catch (Error $e) {
+            // Cattura anche gli errori fatali PHP 7+
+            wp_send_json_error(['message' => 'Errore PHP: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine()]);
         }
     }
     
