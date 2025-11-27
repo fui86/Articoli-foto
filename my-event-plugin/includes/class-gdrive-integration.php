@@ -36,7 +36,7 @@ class MEP_GDrive_Integration {
         try {
             $folder = \TheLion\UseyourDrive\Client::instance()->get_folder($folder_id);
             
-            if (empty($folder['contents'])) {
+            if (empty($folder) || !isset($folder['contents']) || empty($folder['contents'])) {
                 MEP_Helpers::log_info("Cartella {$folder_id} vuota o non accessibile");
                 return [];
             }
@@ -52,12 +52,23 @@ class MEP_GDrive_Integration {
             
             $image_ids = [];
             foreach ($folder['contents'] as $cached_node) {
-                // Verifica che sia un file (non una cartella)
-                if (!$cached_node->get_entry()->is_file()) {
+                // Verifica che cached_node non sia null
+                if ($cached_node === null) {
                     continue;
                 }
                 
-                $mimetype = $cached_node->get_entry()->get_mimetype();
+                // Verifica che get_entry() restituisca un oggetto valido
+                $entry = $cached_node->get_entry();
+                if ($entry === null) {
+                    continue;
+                }
+                
+                // Verifica che sia un file (non una cartella)
+                if (!$entry->is_file()) {
+                    continue;
+                }
+                
+                $mimetype = $entry->get_mimetype();
                 
                 if (in_array($mimetype, $image_mimetypes)) {
                     $image_ids[] = $cached_node->get_id();
@@ -92,7 +103,7 @@ class MEP_GDrive_Integration {
         try {
             $folder = \TheLion\UseyourDrive\Client::instance()->get_folder($folder_id);
             
-            if (empty($folder['contents'])) {
+            if (empty($folder) || !isset($folder['contents']) || empty($folder['contents'])) {
                 return new WP_Error('empty_folder', __('Cartella vuota o non accessibile', 'my-event-plugin'));
             }
             
@@ -108,16 +119,25 @@ class MEP_GDrive_Integration {
             $photos = [];
             
             foreach ($folder['contents'] as $cached_node) {
-                // Verifica che sia un file (non una cartella)
-                if (!$cached_node->get_entry()->is_file()) {
+                // Verifica che cached_node non sia null
+                if ($cached_node === null) {
                     continue;
                 }
                 
-                $mimetype = $cached_node->get_entry()->get_mimetype();
+                // Verifica che get_entry() restituisca un oggetto valido
+                $entry = $cached_node->get_entry();
+                if ($entry === null) {
+                    continue;
+                }
+                
+                // Verifica che sia un file (non una cartella)
+                if (!$entry->is_file()) {
+                    continue;
+                }
+                
+                $mimetype = $entry->get_mimetype();
                 
                 if (in_array($mimetype, $image_mimetypes)) {
-                    $entry = $cached_node->get_entry();
-                    
                     // Ottieni thumbnail URL
                     $thumbnail_url = $entry->get_thumbnail_with_size('medium');
                     if (empty($thumbnail_url)) {
@@ -270,17 +290,20 @@ class MEP_GDrive_Integration {
         try {
             $folder = \TheLion\UseyourDrive\Client::instance()->get_folder($folder_id);
             
-            if (empty($folder)) {
+            if (empty($folder) || !isset($folder['folder']) || $folder['folder'] === null) {
                 return false;
             }
             
+            $folder_obj = $folder['folder'];
+            $contents = isset($folder['contents']) ? $folder['contents'] : [];
+            
             $image_count = self::count_images_in_folder($folder_id);
-            $total_files = count($folder['contents']);
+            $total_files = count($contents);
             
             return [
-                'id' => $folder['folder']->get_id(),
-                'name' => $folder['folder']->get_name(),
-                'path' => $folder['folder']->get_path('root'),
+                'id' => $folder_obj->get_id(),
+                'name' => $folder_obj->get_name(),
+                'path' => $folder_obj->get_path('root'),
                 'total_files' => $total_files,
                 'image_count' => $image_count,
                 'has_enough_images' => $image_count >= get_option('mep_min_photos', 4)
