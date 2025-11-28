@@ -21,8 +21,24 @@ class MEP_Helpers {
             );
         }
         
+        // Verifica che la classe Accounts esista
+        if (!class_exists('TheLion\UseyourDrive\Accounts')) {
+            return new WP_Error(
+                'class_missing',
+                __('Versione di Use-your-Drive non compatibile.', 'my-event-plugin')
+            );
+        }
+        
         // Verifica che ci siano account connessi
-        $accounts = \TheLion\UseyourDrive\Accounts::instance()->list_accounts();
+        try {
+            $accounts = \TheLion\UseyourDrive\Accounts::instance()->list_accounts();
+        } catch (Exception $e) {
+            return new WP_Error(
+                'accounts_error',
+                __('Errore nel recupero degli account Google Drive.', 'my-event-plugin')
+            );
+        }
+        
         if (empty($accounts)) {
             return new WP_Error(
                 'no_accounts',
@@ -60,6 +76,14 @@ class MEP_Helpers {
             return new WP_Error('empty_id', __('ID cartella vuoto', 'my-event-plugin'));
         }
         
+        // Verifica che Use-your-Drive sia disponibile
+        if (!class_exists('TheLion\UseyourDrive\Client')) {
+            return new WP_Error(
+                'useyourdrive_missing',
+                __('Il plugin Use-your-Drive non è disponibile. Installalo e configuralo.', 'my-event-plugin')
+            );
+        }
+        
         try {
             $folder = \TheLion\UseyourDrive\Client::instance()->get_folder($folder_id);
             
@@ -87,6 +111,11 @@ class MEP_Helpers {
      * @return array|false
      */
     public static function get_folder_info($folder_id) {
+        // Verifica che Use-your-Drive sia disponibile
+        if (!class_exists('TheLion\UseyourDrive\Client')) {
+            return false;
+        }
+        
         try {
             $folder = \TheLion\UseyourDrive\Client::instance()->get_folder($folder_id);
             

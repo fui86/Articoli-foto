@@ -290,8 +290,11 @@ $auto_publish = get_option('mep_auto_publish', 'no');
                 </div>
                 
                 <?php
-                $accounts = \TheLion\UseyourDrive\Accounts::instance()->list_accounts();
-                if (!empty($accounts)):
+                // Mostra gli account solo se la classe esiste
+                if (class_exists('TheLion\UseyourDrive\Accounts')):
+                    try {
+                        $accounts = \TheLion\UseyourDrive\Accounts::instance()->list_accounts();
+                        if (!empty($accounts)):
                 ?>
                     <h3><?php _e('Account Google Drive Connessi:', 'my-event-plugin'); ?></h3>
                     <ul>
@@ -306,7 +309,13 @@ $auto_publish = get_option('mep_auto_publish', 'no');
                             </li>
                         <?php endforeach; ?>
                     </ul>
-                <?php endif; ?>
+                <?php 
+                        endif;
+                    } catch (Exception $e) {
+                        // Ignora errori
+                    }
+                endif;
+                ?>
             <?php endif; ?>
             
             <p>

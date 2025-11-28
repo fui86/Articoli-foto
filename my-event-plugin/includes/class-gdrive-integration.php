@@ -8,6 +8,16 @@ defined('ABSPATH') || exit;
 class MEP_GDrive_Integration {
     
     /**
+     * Verifica se Use-your-Drive è disponibile e pronto
+     * 
+     * @return bool
+     */
+    public static function is_useyourdrive_available() {
+        return class_exists('TheLion\UseyourDrive\Client') 
+            && class_exists('TheLion\UseyourDrive\API');
+    }
+    
+    /**
      * Ottieni lista di ID immagini da una cartella Google Drive
      * 
      * @param string $folder_id ID cartella Google Drive
@@ -18,10 +28,15 @@ class MEP_GDrive_Integration {
             return [];
         }
         
+        if (!self::is_useyourdrive_available()) {
+            MEP_Helpers::log_error("Use-your-Drive non disponibile");
+            return [];
+        }
+        
         try {
             $folder = \TheLion\UseyourDrive\Client::instance()->get_folder($folder_id);
             
-            if (empty($folder['contents'])) {
+            if (empty($folder) || !isset($folder['contents']) || empty($folder['contents'])) {
                 MEP_Helpers::log_info("Cartella {$folder_id} vuota o non accessibile");
                 return [];
             }
@@ -37,12 +52,23 @@ class MEP_GDrive_Integration {
             
             $image_ids = [];
             foreach ($folder['contents'] as $cached_node) {
-                // Verifica che sia un file (non una cartella)
-                if (!$cached_node->get_entry()->is_file()) {
+                // Verifica che cached_node non sia null
+                if ($cached_node === null) {
                     continue;
                 }
                 
-                $mimetype = $cached_node->get_entry()->get_mimetype();
+                // Verifica che get_entry() restituisca un oggetto valido
+                $entry = $cached_node->get_entry();
+                if ($entry === null) {
+                    continue;
+                }
+                
+                // Verifica che sia un file (non una cartella)
+                if (!$entry->is_file()) {
+                    continue;
+                }
+                
+                $mimetype = $entry->get_mimetype();
                 
                 if (in_array($mimetype, $image_mimetypes)) {
                     $image_ids[] = $cached_node->get_id();
@@ -70,10 +96,14 @@ class MEP_GDrive_Integration {
             return new WP_Error('empty_folder_id', __('ID cartella vuoto', 'my-event-plugin'));
         }
         
+        if (!self::is_useyourdrive_available()) {
+            return new WP_Error('useyourdrive_missing', __('Il plugin Use-your-Drive non è disponibile', 'my-event-plugin'));
+        }
+        
         try {
             $folder = \TheLion\UseyourDrive\Client::instance()->get_folder($folder_id);
             
-            if (empty($folder['contents'])) {
+            if (empty($folder) || !isset($folder['contents']) || empty($folder['contents'])) {
                 return new WP_Error('empty_folder', __('Cartella vuota o non accessibile', 'my-event-plugin'));
             }
             
@@ -89,16 +119,25 @@ class MEP_GDrive_Integration {
             $photos = [];
             
             foreach ($folder['contents'] as $cached_node) {
-                // Verifica che sia un file (non una cartella)
-                if (!$cached_node->get_entry()->is_file()) {
+                // Verifica che cached_node non sia null
+                if ($cached_node === null) {
                     continue;
                 }
                 
-                $mimetype = $cached_node->get_entry()->get_mimetype();
+                // Verifica che get_entry() restituisca un oggetto valido
+                $entry = $cached_node->get_entry();
+                if ($entry === null) {
+                    continue;
+                }
+                
+                // Verifica che sia un file (non una cartella)
+                if (!$entry->is_file()) {
+                    continue;
+                }
+                
+                $mimetype = $entry->get_mimetype();
                 
                 if (in_array($mimetype, $image_mimetypes)) {
-                    $entry = $cached_node->get_entry();
-                    
                     // Ottieni thumbnail URL
                     $thumbnail_url = $entry->get_thumbnail_with_size('medium');
                     if (empty($thumbnail_url)) {
@@ -135,6 +174,10 @@ class MEP_GDrive_Integration {
     public static function import_specific_photos($photo_ids) {
         if (empty($photo_ids) || !is_array($photo_ids)) {
             return new WP_Error('empty_photo_ids', __('Lista foto vuota', 'my-event-plugin'));
+        }
+        
+        if (!self::is_useyourdrive_available()) {
+            return new WP_Error('useyourdrive_missing', __('Il plugin Use-your-Drive non è disponibile. Installalo e configuralo.', 'my-event-plugin'));
         }
         
         MEP_Helpers::log_info("Inizio import di " . count($photo_ids) . " foto selezionate");
@@ -240,20 +283,27 @@ class MEP_GDrive_Integration {
      * @return array|false
      */
     public static function get_folder_details($folder_id) {
+        if (!self::is_useyourdrive_available()) {
+            return false;
+        }
+        
         try {
             $folder = \TheLion\UseyourDrive\Client::instance()->get_folder($folder_id);
             
-            if (empty($folder)) {
+            if (empty($folder) || !isset($folder['folder']) || $folder['folder'] === null) {
                 return false;
             }
             
+            $folder_obj = $folder['folder'];
+            $contents = isset($folder['contents']) ? $folder['contents'] : [];
+            
             $image_count = self::count_images_in_folder($folder_id);
-            $total_files = count($folder['contents']);
+            $total_files = count($contents);
             
             return [
-                'id' => $folder['folder']->get_id(),
-                'name' => $folder['folder']->get_name(),
-                'path' => $folder['folder']->get_path('root'),
+                'id' => $folder_obj->get_id(),
+                'name' => $folder_obj->get_name(),
+                'path' => $folder_obj->get_path('root'),
                 'total_files' => $total_files,
                 'image_count' => $image_count,
                 'has_enough_images' => $image_count >= get_option('mep_min_photos', 4)
@@ -272,21 +322,25 @@ class MEP_GDrive_Integration {
      * @param array $custom_params Parametri personalizzati
      * @return string
      */
+    /**
+     * Crea lo shortcode Use-your-Drive per la galleria
+     * 
+     * @param string $folder_id ID della cartella Google Drive
+     * @param array $custom_params Parametri aggiuntivi opzionali
+     * @return string Shortcode completo
+     */
     public static function create_gallery_shortcode($folder_id, $custom_params = []) {
-        $default_params = [
+        // Parametri base richiesti: solo dir e mode="gallery"
+        // Questa è la configurazione essenziale per Use-your-Drive
+        $base_params = [
             'dir' => $folder_id,
-            'mode' => 'gallery',
-            'maxheight' => '500px',
-            'targetheight' => '200',
-            'sortfield' => 'name',
-            'include_ext' => 'jpg,jpeg,png,gif,webp',
-            'showfilenames' => '0',
-            'lightbox' => '1',
-            'class' => 'mep-gallery-responsive'
+            'mode' => 'gallery'
         ];
         
-        $params = array_merge($default_params, $custom_params);
+        // Merge con parametri custom se forniti
+        $params = array_merge($base_params, $custom_params);
         
+        // Costruzione shortcode: [useyourdrive dir="ID_CARTELLA" mode="gallery"]
         $shortcode = '[useyourdrive';
         foreach ($params as $key => $value) {
             $shortcode .= ' ' . $key . '="' . esc_attr($value) . '"';
@@ -303,6 +357,10 @@ class MEP_GDrive_Integration {
      * @return bool
      */
     public static function is_folder_accessible($folder_id) {
+        if (!self::is_useyourdrive_available()) {
+            return false;
+        }
+        
         try {
             $folder = \TheLion\UseyourDrive\Client::instance()->get_folder($folder_id);
             return !empty($folder);
@@ -317,6 +375,10 @@ class MEP_GDrive_Integration {
      * @return object|false
      */
     public static function get_primary_account() {
+        if (!class_exists('TheLion\UseyourDrive\Accounts')) {
+            return false;
+        }
+        
         try {
             $accounts = \TheLion\UseyourDrive\Accounts::instance()->list_accounts();
             

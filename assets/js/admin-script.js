@@ -623,6 +623,13 @@
                         
                         $('#mep-imported-links-container').html(linksHtml).slideDown();
                         
+                        // Salva gli URL delle foto importate per il prompt ChatGPT
+                        window.mepImportedPhotoUrls = response.data.photo_urls;
+                        window.mepImportedPhotoNames = photoNames;
+                        
+                        // Genera e mostra il prompt ChatGPT
+                        generateChatGPTPrompt();
+                        
                         // Auto-scroll verso i link
                         $('html, body').animate({
                             scrollTop: $('#mep-imported-links-container').offset().top - 100
@@ -738,6 +745,101 @@
                     MEP.submitBtn.prop('disabled', false).text('Crea Evento');
                 }
             });
+        });
+        
+        // ===== 🤖 Genera Prompt ChatGPT =====
+        function generateChatGPTPrompt() {
+            const title = $('#event_title').val() || '[Inserisci il Titolo Articolo]';
+            const featuredIndex = parseInt($('#mep-featured-image-select').val());
+            const photoUrls = window.mepImportedPhotoUrls || [];
+            const photoNames = window.mepImportedPhotoNames || [];
+            
+            if (photoUrls.length === 0) {
+                console.log('⚠️ Nessuna foto importata per il prompt');
+                return;
+            }
+            
+            // Sanitizza il titolo rimuovendo caratteri speciali HTML
+            const sanitizedTitle = title
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+            
+            // Costruisci il prompt
+            let prompt = `Scrivi l'articolo WordPress in HTML per "${sanitizedTitle}".\n\n`;
+            prompt += `Ecco le foto da inserire nell'articolo:\n\n`;
+            
+            // Filtra le foto escludendo la copertina e poi itera
+            photoUrls
+                .map((url, idx) => ({ url, idx, name: photoNames[idx] || `Foto ${idx + 1}` }))
+                .filter(photo => photo.idx !== featuredIndex)
+                .forEach(photo => {
+                    prompt += `${photo.idx + 1}. ${photo.name}\n${photo.url}\n\n`;
+                });
+            
+            prompt += `\n📌 Note:\n`;
+            prompt += `- Scrivi l'articolo in HTML valido per WordPress\n`;
+            prompt += `- Inserisci le foto nel contenuto con tag <img>\n`;
+            prompt += `- Usa uno stile coinvolgente e accattivante\n`;
+            prompt += `- Aggiungi descrizioni alle immagini\n`;
+            
+            // Mostra il prompt nel textarea
+            $('#mep-chatgpt-prompt-text').val(prompt);
+            $('#mep-chatgpt-prompt-section').slideDown();
+            
+            console.log('🤖 Prompt ChatGPT generato');
+        }
+        
+        // ===== Aggiorna prompt quando cambia titolo o copertina =====
+        $('#event_title, #mep-featured-image-select').on('change input', function() {
+            if (window.mepImportedPhotoUrls && window.mepImportedPhotoUrls.length > 0) {
+                generateChatGPTPrompt();
+            }
+        });
+        
+        // ===== Pulsante Copia Prompt =====
+        $(document).on('click', '#mep-copy-prompt-btn', function() {
+            const $textarea = $('#mep-chatgpt-prompt-text');
+            const $btn = $(this);
+            const originalHtml = $btn.html();
+            const textToCopy = $textarea.val();
+            
+            // Funzione per mostrare feedback di successo
+            function showCopySuccess() {
+                $btn.html('<span class="dashicons dashicons-yes" style="font-size: 16px;"></span> Copiato!');
+                $btn.css('background', '#10a37f');
+                $btn.css('color', 'white');
+                
+                setTimeout(() => {
+                    $btn.html(originalHtml);
+                    $btn.css('background', 'white');
+                    $btn.css('color', '#10a37f');
+                }, 2000);
+                
+                console.log('📋 Prompt copiato negli appunti');
+            }
+            
+            // Funzione per eseguire copia con fallback
+            function execFallbackCopy() {
+                $textarea.select();
+                const success = document.execCommand('copy');
+                if (success) {
+                    showCopySuccess();
+                } else {
+                    console.warn('⚠️ Copia fallita');
+                }
+            }
+            
+            // Usa la clipboard API moderna se disponibile, altrimenti fallback
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(textToCopy)
+                    .then(showCopySuccess)
+                    .catch(execFallbackCopy);
+            } else {
+                execFallbackCopy();
+            }
         });
         
     });

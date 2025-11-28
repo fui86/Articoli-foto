@@ -909,6 +909,38 @@
     text-decoration: underline;
 }
 
+/* ===== ChatGPT Prompt Box ===== */
+.mep-chatgpt-prompt-section {
+    animation: slideInUp 0.4s ease;
+}
+
+.mep-chatgpt-prompt-section textarea {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255,255,255,0.3) transparent;
+}
+
+.mep-chatgpt-prompt-section textarea::-webkit-scrollbar {
+    width: 8px;
+}
+
+.mep-chatgpt-prompt-section textarea::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.mep-chatgpt-prompt-section textarea::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,0.3);
+    border-radius: 4px;
+}
+
+.mep-chatgpt-prompt-section textarea::-webkit-scrollbar-thumb:hover {
+    background: rgba(255,255,255,0.5);
+}
+
+#mep-copy-prompt-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+
 @media (max-width: 782px) {
     .mep-admin-wrap {
         margin-right: 10px;
@@ -936,6 +968,19 @@
     
     .mep-selected-photos-list {
         grid-template-columns: repeat(2, 1fr);
+    }
+    
+    .mep-chatgpt-prompt-section textarea {
+        min-height: 250px;
+    }
+    
+    #mep-copy-prompt-btn {
+        position: relative !important;
+        top: auto !important;
+        right: auto !important;
+        margin-top: 10px;
+        width: 100%;
+        justify-content: center;
     }
 }
 
