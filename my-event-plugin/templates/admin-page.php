@@ -199,7 +199,13 @@ $uyd_check = MEP_Helpers::check_useyourdrive_ready();
                                 echo '</div>';
                             } else {
                                 // Verifica account Google Drive
-                                $accounts = \TheLion\UseyourDrive\Accounts::instance()->list_accounts();
+                                try {
+                                    $accounts = \TheLion\UseyourDrive\Accounts::instance()->list_accounts();
+                                } catch (Exception $e) {
+                                    $accounts = [];
+                                    MEP_Helpers::log_error("Errore accesso account Use-your-Drive", $e->getMessage());
+                                }
+                                
                                 if (empty($accounts)) {
                                     // Nessun account configurato
                                     echo '<div style="padding: 20px; background: #fff3cd; border: 1px solid #ffc107; border-radius: 4px;">';
