@@ -322,21 +322,25 @@ class MEP_GDrive_Integration {
      * @param array $custom_params Parametri personalizzati
      * @return string
      */
+    /**
+     * Crea lo shortcode Use-your-Drive per la galleria
+     * 
+     * @param string $folder_id ID della cartella Google Drive
+     * @param array $custom_params Parametri aggiuntivi opzionali
+     * @return string Shortcode completo
+     */
     public static function create_gallery_shortcode($folder_id, $custom_params = []) {
-        $default_params = [
+        // Parametri base richiesti: solo dir e mode="gallery"
+        // Questa è la configurazione essenziale per Use-your-Drive
+        $base_params = [
             'dir' => $folder_id,
-            'mode' => 'gallery',
-            'maxheight' => '500px',
-            'targetheight' => '200',
-            'sortfield' => 'name',
-            'include_ext' => 'jpg,jpeg,png,gif,webp',
-            'showfilenames' => '0',
-            'lightbox' => '1',
-            'class' => 'mep-gallery-responsive'
+            'mode' => 'gallery'
         ];
         
-        $params = array_merge($default_params, $custom_params);
+        // Merge con parametri custom se forniti
+        $params = array_merge($base_params, $custom_params);
         
+        // Costruzione shortcode: [useyourdrive dir="ID_CARTELLA" mode="gallery"]
         $shortcode = '[useyourdrive';
         foreach ($params as $key => $value) {
             $shortcode .= ' ' . $key . '="' . esc_attr($value) . '"';
