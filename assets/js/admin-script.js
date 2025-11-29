@@ -675,7 +675,7 @@
             $.ajax({
                 url: mepData.ajax_url,
                 type: 'POST',
-                data: MEP.form.serialize() + '&action=mep_process_event_creation',
+                data: MEP.form.serialize() + '&action=mep_process_event_creation&nonce=' + mepData.nonce,
                 success: function(response) {
                     console.log('✅ Risposta creazione:', response);
                     

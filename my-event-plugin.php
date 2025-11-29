@@ -234,6 +234,7 @@ class My_Event_Plugin {
      * Handler AJAX per creare l'evento
      */
     public function handle_event_creation() {
+        // Verifica nonce di sicurezza (passato sia dal form che da mepData.nonce)
         check_ajax_referer('mep_nonce', 'nonce');
         
         if (!current_user_can('publish_posts')) {
