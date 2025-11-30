@@ -42,15 +42,15 @@ class MEP_Post_Creator {
             return $folder_validation;
         }
         
-        // 3. Valida foto selezionate
+        // 3. Valida foto selezionate (minimo 1 foto)
         $selected_photo_ids = !empty($form_data['selected_photo_ids']) 
             ? explode(',', sanitize_text_field($form_data['selected_photo_ids'])) 
             : [];
         
-        if (empty($selected_photo_ids) || count($selected_photo_ids) !== 4) {
+        if (empty($selected_photo_ids) || count($selected_photo_ids) < 1) {
             return new WP_Error(
                 'invalid_photos',
-                __('Devi selezionare esattamente 4 foto', 'my-event-plugin')
+                __('Devi selezionare almeno 1 foto', 'my-event-plugin')
             );
         }
         
@@ -59,7 +59,9 @@ class MEP_Post_Creator {
             ? absint($form_data['featured_image_index']) 
             : 0;
         
-        if ($featured_index < 0 || $featured_index > 3) {
+        // Assicurati che l'indice sia valido rispetto al numero di foto selezionate
+        $max_index = count($selected_photo_ids) - 1;
+        if ($featured_index < 0 || $featured_index > $max_index) {
             $featured_index = 0; // Default alla prima foto
         }
         
@@ -235,27 +237,28 @@ class MEP_Post_Creator {
     }
     
     /**
-     * Aggiunge la galleria al contenuto del post
+     * Aggiunge la galleria Use-your-Drive al contenuto del post
+     * Inserisce lo shortcode alla fine del contenuto dell'articolo
      * 
-     * @param int $post_id
-     * @param string $gallery_shortcode
+     * @param int $post_id ID del post
+     * @param string $gallery_shortcode Lo shortcode della galleria
      */
     private function append_gallery_to_content($post_id, $gallery_shortcode) {
         $post = get_post($post_id);
         $content = $post->post_content;
         
-        // Aggiungi separatore e galleria alla fine
-        $content .= "\n\n<!-- wp:heading -->\n";
-        $content .= "<h2>" . __('Galleria Foto Evento', 'my-event-plugin') . "</h2>\n";
-        $content .= "<!-- /wp:heading -->\n\n";
-        $content .= "<!-- wp:shortcode -->\n";
-        $content .= $gallery_shortcode . "\n";
-        $content .= "<!-- /wp:shortcode -->\n";
+        // Aggiungi lo shortcode Use-your-Drive in fondo al contenuto
+        // Lo shortcode viene aggiunto su una nuova riga dopo il contenuto principale
+        if (!empty($gallery_shortcode)) {
+            $content .= "\n\n" . $gallery_shortcode;
+        }
         
         wp_update_post([
             'ID' => $post_id,
             'post_content' => $content
         ]);
+        
+        MEP_Helpers::log_info("Galleria Use-your-Drive aggiunta al post {$post_id}");
     }
     
     /**

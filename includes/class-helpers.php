@@ -60,24 +60,9 @@ class MEP_Helpers {
             return new WP_Error('empty_id', __('ID cartella vuoto', 'my-event-plugin'));
         }
         
-        try {
-            $folder = \TheLion\UseyourDrive\Client::instance()->get_folder($folder_id);
-            
-            if (empty($folder)) {
-                return new WP_Error(
-                    'invalid_id',
-                    __('Cartella non trovata o non accessibile. Verifica di avere i permessi.', 'my-event-plugin')
-                );
-            }
-            
-            return true;
-            
-        } catch (Exception $e) {
-            return new WP_Error(
-                'api_error',
-                sprintf(__('Errore API: %s', 'my-event-plugin'), $e->getMessage())
-            );
-        }
+        // Usa l'API Google Drive diretta per validare la cartella
+        // Questo bypassa Use-your-Drive ed evita problemi di compatibilità
+        return MEP_Google_Drive_API::verify_folder_access($folder_id);
     }
     
     /**

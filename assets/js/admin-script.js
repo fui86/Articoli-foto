@@ -296,10 +296,12 @@
         // ===== Photo Selection State =====
         const PhotoSelector = {
             selectedPhotos: [], // Array di oggetti {id, name, thumbnail}
+            importedUrls: [], // Array di URL delle foto importate nella Media Library
             maxPhotos: 20, // Aumentato a 20 (o rimuovi il limite)
             
             reset: function() {
                 this.selectedPhotos = [];
+                this.importedUrls = []; // Reset anche gli URL importati
                 this.updateUI();
             },
             
@@ -463,7 +465,7 @@
                         MEP.folderValidationMsg
                             .removeClass('error')
                             .addClass('success')
-                            .html(`✅ Trovate <strong>${response.data.photos.length}</strong> foto! Seleziona le 4 che vuoi importare.`)
+                            .html(`✅ Trovate <strong>${response.data.photos.length}</strong> foto! Seleziona le foto che vuoi importare (minimo 1).`)
                             .slideDown();
                     } else {
                         const errorMessage = response.data && response.data.message ? response.data.message : 'Errore nel caricamento foto';
@@ -510,16 +512,15 @@
             }
             
             photos.forEach(photo => {
-                // Usa proxy per le miniature (richiedono OAuth)
-                const proxyUrl = mepData.ajax_url + 
-                    '?action=mep_proxy_thumbnail' + 
-                    '&nonce=' + mepData.nonce + 
-                    '&url=' + encodeURIComponent(photo.thumbnail);
+                // Usa URL diretto miniature Google Drive (formato pubblico)
+                // Il server già genera URL pubblici: https://drive.google.com/thumbnail?id=XXX&sz=w300
+                const thumbUrl = photo.thumbnail || 
+                    `https://drive.google.com/thumbnail?id=${photo.id}&sz=w300`;
                 
                 const $item = $(`
                     <div class="mep-photo-item" data-photo-id="${photo.id}">
                         <div class="mep-photo-thumb">
-                            <img src="${proxyUrl}" alt="${photo.name}" loading="lazy" 
+                            <img src="${thumbUrl}" alt="${photo.name}" loading="lazy" 
                                  onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'200\' height=\'200\'%3E%3Crect fill=\'%23ddd\' width=\'200\' height=\'200\'/%3E%3Ctext x=\'50%25\' y=\'50%25\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23999\' font-size=\'14\' font-family=\'Arial\'%3EErrore caricamento%3C/text%3E%3C/svg%3E';">
                             <div class="mep-photo-overlay">
                                 <button type="button" class="mep-select-photo-btn">Seleziona</button>
@@ -609,6 +610,10 @@
                     console.log('✅ Risposta importazione foto:', response);
                     
                     if (response.success) {
+                        // 🔑 Salva gli URL delle foto importate per il prompt ChatGPT
+                        PhotoSelector.importedUrls = response.data.photo_urls || [];
+                        console.log('📸 URL salvati per prompt:', PhotoSelector.importedUrls);
+                        
                         // Mostra link foto importate
                         let linksHtml = '<h4>✅ Foto Importate con Successo!</h4>';
                         linksHtml += '<p style="margin: 10px 0; color: #646970;">Ecco i link delle foto nella tua Media Library:</p>';
@@ -620,6 +625,7 @@
                         });
                         
                         linksHtml += '</ul>';
+                        linksHtml += '<p style="margin-top: 15px; padding: 10px; background: #d4edda; border-radius: 4px; color: #155724;"><strong>✅ Ora puoi:</strong> Selezionare la copertina, scegliere la categoria, scrivere il titolo, e poi cliccare "Genera Prompt ChatGPT"!</p>';
                         
                         $('#mep-imported-links-container').html(linksHtml).slideDown();
                         
@@ -631,7 +637,7 @@
                         // Riabilita bottone
                         $btn.prop('disabled', false).html(originalText);
                         
-                        alert('✅ ' + response.data.photo_urls.length + ' foto importate con successo!');
+                        alert('✅ ' + response.data.photo_urls.length + ' foto importate con successo! Ora seleziona copertina e categoria, poi genera il prompt ChatGPT.');
                     } else {
                         alert('❌ Errore: ' + response.data.message);
                         $btn.prop('disabled', false).html(originalText);
@@ -643,6 +649,98 @@
                     $btn.prop('disabled', false).html(originalText);
                 }
             });
+        });
+        
+        // ===== Genera Prompt ChatGPT =====
+        $('#mep-generate-prompt-btn').on('click', function() {
+            // Validazione
+            if (PhotoSelector.selectedPhotos.length === 0) {
+                alert('Seleziona almeno una foto prima di generare il prompt!');
+                return;
+            }
+            
+            if (!$('#mep-featured-image-select').val()) {
+                alert('Scegli quale foto usare come copertina prima di generare il prompt!');
+                return;
+            }
+            
+            if (!$('#event_category').val()) {
+                alert('Seleziona una categoria prima di generare il prompt!');
+                return;
+            }
+            
+            // Recupera i dati
+            const folderName = $('#event_folder_name').val() || 'Nome Evento';
+            const categoryText = $('#event_category option:selected').text() || 'Categoria';
+            const featuredIndex = parseInt($('#mep-featured-image-select').val()) || 0;
+            
+            // Estrai solo il nome del festeggiato (rimuovi la data DD-MM-AAAA dalla fine)
+            const nomeFesteggiato = folderName.replace(/\s+\d{2}-\d{2}-\d{4}$/, '').trim() || folderName;
+            
+            // Raccogli gli URL delle foto (eccetto la copertina)
+            const photoUrlsForPrompt = [];
+            PhotoSelector.selectedPhotos.forEach((photo, idx) => {
+                if (idx !== featuredIndex && photo.url) {
+                    photoUrlsForPrompt.push(photo.url);
+                }
+            });
+            
+            // Se non ci sono URL dalle foto selezionate, usa quelli importati
+            if (photoUrlsForPrompt.length === 0) {
+                // Prova a recuperare dagli URL già importati nel container
+                $('#mep-imported-links-container a').each(function(idx) {
+                    if (idx !== featuredIndex) {
+                        photoUrlsForPrompt.push($(this).attr('href'));
+                    }
+                });
+            }
+            
+            // Genera il prompt
+            const chatGptPrompt = `Scrivi un articolo sui ${categoryText} di ${nomeFesteggiato}. Ecco le foto che devi inserire nell'articolo:\n${photoUrlsForPrompt.join('\n')}`;
+            
+            // Mostra il prompt
+            const promptHtml = `
+                <div style="padding: 15px; background: #e7f5ff; border: 2px solid #0073aa; border-radius: 8px;">
+                    <h4 style="margin: 0 0 10px 0; color: #0073aa;">
+                        <span class="dashicons dashicons-format-chat" style="margin-right: 5px;"></span>
+                        Prompt per ChatGPT
+                    </h4>
+                    <p style="margin: 0 0 10px 0; color: #646970; font-size: 13px;">
+                        Copia questo prompt e incollalo in ChatGPT per generare l'articolo. Poi inserisci il contenuto generato nel campo "Contenuto Articolo".
+                    </p>
+                    <textarea id="mep-chatgpt-prompt" readonly 
+                        style="width: 100%; height: 150px; padding: 10px; border: 1px solid #c3c4c7; border-radius: 4px; 
+                               font-family: monospace; font-size: 12px; resize: vertical; background: #fff;"
+                    >${chatGptPrompt}</textarea>
+                    <button type="button" id="mep-copy-prompt-btn" class="button button-primary" 
+                        style="margin-top: 10px;">
+                        <span class="dashicons dashicons-clipboard" style="margin-right: 5px; margin-top: 3px;"></span>
+                        Copia Prompt
+                    </button>
+                    <span id="mep-copy-success" style="margin-left: 10px; color: #00a32a; display: none;">✓ Copiato!</span>
+                </div>
+            `;
+            
+            $('#mep-chatgpt-prompt-container').html(promptHtml).slideDown();
+            
+            // Handler per il bottone copia
+            $('#mep-copy-prompt-btn').on('click', function() {
+                const textarea = document.getElementById('mep-chatgpt-prompt');
+                textarea.select();
+                textarea.setSelectionRange(0, 99999);
+                
+                navigator.clipboard.writeText(textarea.value).then(function() {
+                    $('#mep-copy-success').fadeIn().delay(2000).fadeOut();
+                }).catch(function() {
+                    document.execCommand('copy');
+                    $('#mep-copy-success').fadeIn().delay(2000).fadeOut();
+                });
+            });
+            
+            // Scroll verso il prompt
+            $('html, body').animate({
+                scrollTop: $('#mep-chatgpt-prompt-container').offset().top - 100
+            }, 500);
         });
         
         // ===== Submit Form =====
@@ -675,13 +773,14 @@
             $.ajax({
                 url: mepData.ajax_url,
                 type: 'POST',
-                data: MEP.form.serialize() + '&action=mep_process_event_creation',
+                data: MEP.form.serialize() + '&action=mep_process_event_creation&nonce=' + mepData.nonce,
                 success: function(response) {
                     console.log('✅ Risposta creazione:', response);
                     
                     if (response.success) {
                         // Genera HTML per i link delle foto importate
                         let photoLinksHtml = '';
+                        
                         if (response.data.photo_urls && response.data.photo_urls.length > 0) {
                             photoLinksHtml = '<div style="margin-top: 15px; padding: 12px; background: white; border: 1px solid #ddd; border-radius: 4px;">';
                             photoLinksHtml += '<p style="margin: 0 0 8px 0; font-weight: 600;">📸 Link Foto Importate:</p>';
@@ -714,12 +813,12 @@
                             scrollTop: MEP.statusMsg.offset().top - 100
                         }, 800);
                         
-                        // Reset form dopo 5 secondi (tempo per copiare i link)
+                        // Reset form dopo 15 secondi (tempo per copiare il prompt)
                         setTimeout(() => {
                             if (confirm('Vuoi creare un altro evento?')) {
                                 location.reload();
                             }
-                        }, 5000);
+                        }, 15000);
                     } else {
                         MEP.statusMsg
                             .html(`<div style="background: #f8d7da; color: #721c24; padding: 15px; border-radius: 4px;">❌ <strong>Errore:</strong> ${response.data.message}</div>`)

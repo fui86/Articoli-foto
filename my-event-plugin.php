@@ -234,21 +234,25 @@ class My_Event_Plugin {
      * Handler AJAX per creare l'evento
      */
     public function handle_event_creation() {
+        // Verifica nonce di sicurezza (passato sia dal form che da mepData.nonce)
         check_ajax_referer('mep_nonce', 'nonce');
         
         if (!current_user_can('publish_posts')) {
             wp_send_json_error(['message' => __('Permessi insufficienti', 'my-event-plugin')]);
         }
         
+        // Recupera template ID dalle impostazioni salvate
+        $template_id = $this->get_template_post_id();
+        
         // Valida template ID
-        if (empty($this->template_post_id) || $this->template_post_id === 0) {
+        if (empty($template_id) || $template_id === 0) {
             wp_send_json_error([
                 'message' => __('ID template post non configurato! Vai in Impostazioni.', 'my-event-plugin')
             ]);
         }
         
         try {
-            $creator = new MEP_Post_Creator($this->template_post_id);
+            $creator = new MEP_Post_Creator($template_id);
             $result = $creator->create_event_post($_POST);
             
             if (is_wp_error($result)) {
@@ -515,10 +519,13 @@ class My_Event_Plugin {
             $photos = [];
             if (!empty($result['files'])) {
                 foreach ($result['files'] as $file) {
+                    // Usa URL pubblico miniature Google Drive (non richiede auth)
+                    $thumbnail_url = 'https://drive.google.com/thumbnail?id=' . $file['id'] . '&sz=w300';
+                    
                     $photos[] = [
                         'id' => $file['id'],
                         'name' => $file['name'],
-                        'thumbnail' => $file['thumbnailLink'] ?? '',
+                        'thumbnail' => $thumbnail_url,
                         'webViewLink' => $file['webViewLink'] ?? '',
                         'mimeType' => $file['mimeType'] ?? ''
                     ];
