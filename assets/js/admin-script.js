@@ -614,70 +614,15 @@
                         linksHtml += '<p style="margin: 10px 0; color: #646970;">Ecco i link delle foto nella tua Media Library:</p>';
                         linksHtml += '<ul>';
                         
-                        // Raccogli gli URL delle foto (eccetto la copertina)
-                        const featuredIndex = parseInt($('#mep-featured-image-select').val()) || 0;
-                        const photoUrlsForPrompt = [];
-                        
                         response.data.photo_urls.forEach((url, idx) => {
                             const name = photoNames[idx] || `Foto ${idx + 1}`;
                             linksHtml += `<li><strong>${idx + 1}. ${name}</strong><br><a href="${url}" target="_blank">${url}</a></li>`;
-                            
-                            // Escludi la foto di copertina dal prompt
-                            if (idx !== featuredIndex) {
-                                photoUrlsForPrompt.push(url);
-                            }
                         });
                         
                         linksHtml += '</ul>';
-                        
-                        // Genera il prompt per ChatGPT
-                        const folderName = $('#event_folder_name').val() || 'Nome Evento';
-                        const categoryText = $('#event_category option:selected').text() || 'Categoria';
-                        
-                        // Estrai solo il nome del festeggiato (rimuovi la data DD-MM-AAAA dalla fine)
-                        // Formato cartella: "Nome festeggiato DD-MM-AAAA"
-                        const nomeFesteggiato = folderName.replace(/\s+\d{2}-\d{2}-\d{4}$/, '').trim() || folderName;
-                        
-                        const chatGptPrompt = `Scrivi un articolo sui ${categoryText} di ${nomeFesteggiato}. Ecco le foto che devi inserire nell'articolo:\n${photoUrlsForPrompt.join('\n')}`;
-                        
-                        linksHtml += `
-                            <div style="margin-top: 20px; padding: 15px; background: #e7f5ff; border: 2px solid #0073aa; border-radius: 8px;">
-                                <h4 style="margin: 0 0 10px 0; color: #0073aa;">
-                                    <span class="dashicons dashicons-format-chat" style="margin-right: 5px;"></span>
-                                    Prompt per ChatGPT
-                                </h4>
-                                <p style="margin: 0 0 10px 0; color: #646970; font-size: 13px;">
-                                    Copia questo prompt e incollalo in ChatGPT per generare l'articolo:
-                                </p>
-                                <textarea id="mep-chatgpt-prompt" readonly 
-                                    style="width: 100%; height: 150px; padding: 10px; border: 1px solid #c3c4c7; border-radius: 4px; 
-                                           font-family: monospace; font-size: 12px; resize: vertical; background: #fff;"
-                                >${chatGptPrompt}</textarea>
-                                <button type="button" id="mep-copy-prompt-btn" class="button button-primary" 
-                                    style="margin-top: 10px;">
-                                    <span class="dashicons dashicons-clipboard" style="margin-right: 5px; margin-top: 3px;"></span>
-                                    Copia Prompt
-                                </button>
-                                <span id="mep-copy-success" style="margin-left: 10px; color: #00a32a; display: none;">✓ Copiato!</span>
-                            </div>
-                        `;
+                        linksHtml += '<p style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 4px; color: #856404;"><strong>⚠️ Nota:</strong> Il prompt per ChatGPT verrà generato dopo la creazione dell\'evento, quando avrai selezionato categoria e foto copertina.</p>';
                         
                         $('#mep-imported-links-container').html(linksHtml).slideDown();
-                        
-                        // Handler per il bottone copia
-                        $('#mep-copy-prompt-btn').on('click', function() {
-                            const textarea = document.getElementById('mep-chatgpt-prompt');
-                            textarea.select();
-                            textarea.setSelectionRange(0, 99999); // Per mobile
-                            
-                            navigator.clipboard.writeText(textarea.value).then(function() {
-                                $('#mep-copy-success').fadeIn().delay(2000).fadeOut();
-                            }).catch(function() {
-                                // Fallback per browser vecchi
-                                document.execCommand('copy');
-                                $('#mep-copy-success').fadeIn().delay(2000).fadeOut();
-                            });
-                        });
                         
                         // Auto-scroll verso i link
                         $('html, body').animate({
@@ -738,6 +683,8 @@
                     if (response.success) {
                         // Genera HTML per i link delle foto importate
                         let photoLinksHtml = '';
+                        const photoUrlsForPrompt = [];
+                        
                         if (response.data.photo_urls && response.data.photo_urls.length > 0) {
                             photoLinksHtml = '<div style="margin-top: 15px; padding: 12px; background: white; border: 1px solid #ddd; border-radius: 4px;">';
                             photoLinksHtml += '<p style="margin: 0 0 8px 0; font-weight: 600;">📸 Link Foto Importate:</p>';
@@ -748,9 +695,46 @@
                                     ${isFeatured ? '<strong style="color: #d63638;">🌟 COPERTINA:</strong> ' : ''}
                                     <a href="${url}" target="_blank">${url}</a>
                                 </li>`;
+                                
+                                // Raccogli gli URL delle foto (eccetto la copertina) per il prompt
+                                if (!isFeatured) {
+                                    photoUrlsForPrompt.push(url);
+                                }
                             });
                             photoLinksHtml += '</ul></div>';
                         }
+                        
+                        // Genera il prompt per ChatGPT
+                        const folderName = $('#event_folder_name').val() || 'Nome Evento';
+                        const categoryText = $('#event_category option:selected').text() || 'Categoria';
+                        
+                        // Estrai solo il nome del festeggiato (rimuovi la data DD-MM-AAAA dalla fine)
+                        const nomeFesteggiato = folderName.replace(/\s+\d{2}-\d{2}-\d{4}$/, '').trim() || folderName;
+                        
+                        const chatGptPrompt = `Scrivi un articolo sui ${categoryText} di ${nomeFesteggiato}. Ecco le foto che devi inserire nell'articolo:\n${photoUrlsForPrompt.join('\n')}`;
+                        
+                        // Box prompt ChatGPT
+                        const promptHtml = `
+                            <div style="margin-top: 20px; padding: 15px; background: #e7f5ff; border: 2px solid #0073aa; border-radius: 8px;">
+                                <h4 style="margin: 0 0 10px 0; color: #0073aa;">
+                                    <span class="dashicons dashicons-format-chat" style="margin-right: 5px;"></span>
+                                    Prompt per ChatGPT
+                                </h4>
+                                <p style="margin: 0 0 10px 0; color: #646970; font-size: 13px;">
+                                    Copia questo prompt e incollalo in ChatGPT per generare l'articolo:
+                                </p>
+                                <textarea id="mep-chatgpt-prompt" readonly 
+                                    style="width: 100%; height: 150px; padding: 10px; border: 1px solid #c3c4c7; border-radius: 4px; 
+                                           font-family: monospace; font-size: 12px; resize: vertical; background: #fff;"
+                                >${chatGptPrompt}</textarea>
+                                <button type="button" id="mep-copy-prompt-btn" class="button button-primary" 
+                                    style="margin-top: 10px;">
+                                    <span class="dashicons dashicons-clipboard" style="margin-right: 5px; margin-top: 3px;"></span>
+                                    Copia Prompt
+                                </button>
+                                <span id="mep-copy-success" style="margin-left: 10px; color: #00a32a; display: none;">✓ Copiato!</span>
+                            </div>
+                        `;
                         
                         MEP.statusMsg
                             .html(`
@@ -761,21 +745,36 @@
                                         <a href="${response.data.view_url}" class="button" target="_blank">Visualizza</a>
                                     </p>
                                     ${photoLinksHtml}
+                                    ${promptHtml}
                                 </div>
                             `)
                             .slideDown();
+                        
+                        // Handler per il bottone copia prompt
+                        $('#mep-copy-prompt-btn').on('click', function() {
+                            const textarea = document.getElementById('mep-chatgpt-prompt');
+                            textarea.select();
+                            textarea.setSelectionRange(0, 99999);
+                            
+                            navigator.clipboard.writeText(textarea.value).then(function() {
+                                $('#mep-copy-success').fadeIn().delay(2000).fadeOut();
+                            }).catch(function() {
+                                document.execCommand('copy');
+                                $('#mep-copy-success').fadeIn().delay(2000).fadeOut();
+                            });
+                        });
                         
                         // Auto-scroll verso il messaggio di successo
                         $('html, body').animate({
                             scrollTop: MEP.statusMsg.offset().top - 100
                         }, 800);
                         
-                        // Reset form dopo 5 secondi (tempo per copiare i link)
+                        // Reset form dopo 15 secondi (tempo per copiare il prompt)
                         setTimeout(() => {
                             if (confirm('Vuoi creare un altro evento?')) {
                                 location.reload();
                             }
-                        }, 5000);
+                        }, 15000);
                     } else {
                         MEP.statusMsg
                             .html(`<div style="background: #f8d7da; color: #721c24; padding: 15px; border-radius: 4px;">❌ <strong>Errore:</strong> ${response.data.message}</div>`)
