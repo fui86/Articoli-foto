@@ -634,7 +634,11 @@
                         const folderName = $('#event_folder_name').val() || 'Nome Evento';
                         const categoryText = $('#event_category option:selected').text() || 'Categoria';
                         
-                        const chatGptPrompt = `Scrivi un articolo sui ${categoryText} di ${folderName}. Ecco le foto che devi inserire nell'articolo:\n${photoUrlsForPrompt.join('\n')}`;
+                        // Estrai solo il nome del festeggiato (rimuovi la data DD-MM-AAAA dalla fine)
+                        // Formato cartella: "Nome festeggiato DD-MM-AAAA"
+                        const nomeFesteggiato = folderName.replace(/\s+\d{2}-\d{2}-\d{4}$/, '').trim() || folderName;
+                        
+                        const chatGptPrompt = `Scrivi un articolo sui ${categoryText} di ${nomeFesteggiato}. Ecco le foto che devi inserire nell'articolo:\n${photoUrlsForPrompt.join('\n')}`;
                         
                         linksHtml += `
                             <div style="margin-top: 20px; padding: 15px; background: #e7f5ff; border: 2px solid #0073aa; border-radius: 8px;">
