@@ -510,16 +510,15 @@
             }
             
             photos.forEach(photo => {
-                // Usa proxy per le miniature (richiedono OAuth)
-                const proxyUrl = mepData.ajax_url + 
-                    '?action=mep_proxy_thumbnail' + 
-                    '&nonce=' + mepData.nonce + 
-                    '&url=' + encodeURIComponent(photo.thumbnail);
+                // Usa URL diretto miniature Google Drive (formato pubblico)
+                // Il server già genera URL pubblici: https://drive.google.com/thumbnail?id=XXX&sz=w300
+                const thumbUrl = photo.thumbnail || 
+                    `https://drive.google.com/thumbnail?id=${photo.id}&sz=w300`;
                 
                 const $item = $(`
                     <div class="mep-photo-item" data-photo-id="${photo.id}">
                         <div class="mep-photo-thumb">
-                            <img src="${proxyUrl}" alt="${photo.name}" loading="lazy" 
+                            <img src="${thumbUrl}" alt="${photo.name}" loading="lazy" 
                                  onerror="this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'200\' height=\'200\'%3E%3Crect fill=\'%23ddd\' width=\'200\' height=\'200\'/%3E%3Ctext x=\'50%25\' y=\'50%25\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%23999\' font-size=\'14\' font-family=\'Arial\'%3EErrore caricamento%3C/text%3E%3C/svg%3E';">
                             <div class="mep-photo-overlay">
                                 <button type="button" class="mep-select-photo-btn">Seleziona</button>

@@ -519,10 +519,13 @@ class My_Event_Plugin {
             $photos = [];
             if (!empty($result['files'])) {
                 foreach ($result['files'] as $file) {
+                    // Usa URL pubblico miniature Google Drive (non richiede auth)
+                    $thumbnail_url = 'https://drive.google.com/thumbnail?id=' . $file['id'] . '&sz=w300';
+                    
                     $photos[] = [
                         'id' => $file['id'],
                         'name' => $file['name'],
-                        'thumbnail' => $file['thumbnailLink'] ?? '',
+                        'thumbnail' => $thumbnail_url,
                         'webViewLink' => $file['webViewLink'] ?? '',
                         'mimeType' => $file['mimeType'] ?? ''
                     ];
