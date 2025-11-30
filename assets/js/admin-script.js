@@ -296,10 +296,12 @@
         // ===== Photo Selection State =====
         const PhotoSelector = {
             selectedPhotos: [], // Array di oggetti {id, name, thumbnail}
+            importedUrls: [], // Array di URL delle foto importate nella Media Library
             maxPhotos: 20, // Aumentato a 20 (o rimuovi il limite)
             
             reset: function() {
                 this.selectedPhotos = [];
+                this.importedUrls = []; // Reset anche gli URL importati
                 this.updateUI();
             },
             
@@ -608,6 +610,10 @@
                     console.log('✅ Risposta importazione foto:', response);
                     
                     if (response.success) {
+                        // 🔑 Salva gli URL delle foto importate per il prompt ChatGPT
+                        PhotoSelector.importedUrls = response.data.photo_urls || [];
+                        console.log('📸 URL salvati per prompt:', PhotoSelector.importedUrls);
+                        
                         // Mostra link foto importate
                         let linksHtml = '<h4>✅ Foto Importate con Successo!</h4>';
                         linksHtml += '<p style="margin: 10px 0; color: #646970;">Ecco i link delle foto nella tua Media Library:</p>';
@@ -619,7 +625,7 @@
                         });
                         
                         linksHtml += '</ul>';
-                        linksHtml += '<p style="margin-top: 15px; padding: 10px; background: #fff3cd; border-radius: 4px; color: #856404;"><strong>⚠️ Nota:</strong> Il prompt per ChatGPT verrà generato dopo la creazione dell\'evento, quando avrai selezionato categoria e foto copertina.</p>';
+                        linksHtml += '<p style="margin-top: 15px; padding: 10px; background: #d4edda; border-radius: 4px; color: #155724;"><strong>✅ Ora puoi:</strong> Selezionare la copertina, scegliere la categoria, scrivere il titolo, e poi cliccare "Genera Prompt ChatGPT"!</p>';
                         
                         $('#mep-imported-links-container').html(linksHtml).slideDown();
                         
@@ -631,7 +637,7 @@
                         // Riabilita bottone
                         $btn.prop('disabled', false).html(originalText);
                         
-                        alert('✅ ' + response.data.photo_urls.length + ' foto importate con successo!');
+                        alert('✅ ' + response.data.photo_urls.length + ' foto importate con successo! Ora seleziona copertina e categoria, poi genera il prompt ChatGPT.');
                     } else {
                         alert('❌ Errore: ' + response.data.message);
                         $btn.prop('disabled', false).html(originalText);
