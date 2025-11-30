@@ -298,6 +298,23 @@ defined('ABSPATH') || exit;
                     </div>
                 </div>
                 
+                <!-- Genera Prompt Button -->
+                <div class="mep-form-actions" style="margin-bottom: 20px;">
+                    <button type="button" 
+                            class="button button-secondary button-hero" 
+                            id="mep-generate-prompt-btn"
+                            style="background: #e7f5ff; border-color: #0073aa; color: #0073aa;">
+                        <span class="dashicons dashicons-format-chat"></span>
+                        <?php _e('Genera Prompt ChatGPT', 'my-event-plugin'); ?>
+                    </button>
+                    <p style="margin-top: 10px; color: #646970; font-size: 13px;">
+                        <?php _e('Clicca per generare il prompt da usare con ChatGPT. Poi compila il contenuto con la risposta di ChatGPT.', 'my-event-plugin'); ?>
+                    </p>
+                </div>
+                
+                <!-- Container per il prompt ChatGPT -->
+                <div id="mep-chatgpt-prompt-container" style="display: none; margin-bottom: 20px;"></div>
+                
                 <!-- Submit Button -->
                 <div class="mep-form-actions">
                     <button type="submit" 
