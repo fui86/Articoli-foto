@@ -42,15 +42,15 @@ class MEP_Post_Creator {
             return $folder_validation;
         }
         
-        // 3. Valida foto selezionate
+        // 3. Valida foto selezionate (minimo 1 foto)
         $selected_photo_ids = !empty($form_data['selected_photo_ids']) 
             ? explode(',', sanitize_text_field($form_data['selected_photo_ids'])) 
             : [];
         
-        if (empty($selected_photo_ids) || count($selected_photo_ids) !== 4) {
+        if (empty($selected_photo_ids) || count($selected_photo_ids) < 1) {
             return new WP_Error(
                 'invalid_photos',
-                __('Devi selezionare esattamente 4 foto', 'my-event-plugin')
+                __('Devi selezionare almeno 1 foto', 'my-event-plugin')
             );
         }
         
@@ -59,7 +59,9 @@ class MEP_Post_Creator {
             ? absint($form_data['featured_image_index']) 
             : 0;
         
-        if ($featured_index < 0 || $featured_index > 3) {
+        // Assicurati che l'indice sia valido rispetto al numero di foto selezionate
+        $max_index = count($selected_photo_ids) - 1;
+        if ($featured_index < 0 || $featured_index > $max_index) {
             $featured_index = 0; // Default alla prima foto
         }
         
