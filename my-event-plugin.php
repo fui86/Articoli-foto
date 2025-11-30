@@ -241,15 +241,18 @@ class My_Event_Plugin {
             wp_send_json_error(['message' => __('Permessi insufficienti', 'my-event-plugin')]);
         }
         
+        // Recupera template ID dalle impostazioni salvate
+        $template_id = $this->get_template_post_id();
+        
         // Valida template ID
-        if (empty($this->template_post_id) || $this->template_post_id === 0) {
+        if (empty($template_id) || $template_id === 0) {
             wp_send_json_error([
                 'message' => __('ID template post non configurato! Vai in Impostazioni.', 'my-event-plugin')
             ]);
         }
         
         try {
-            $creator = new MEP_Post_Creator($this->template_post_id);
+            $creator = new MEP_Post_Creator($template_id);
             $result = $creator->create_event_post($_POST);
             
             if (is_wp_error($result)) {
